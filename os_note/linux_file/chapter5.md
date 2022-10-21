@@ -320,7 +320,339 @@ FIFO也是一種特殊的檔案類型，他主要的目的在解決多個程序�
 ##### Linux檔案名稱的限制：
 由於Linux在文字介面下的一些指令操作關係，一般來說，你在設定Linux底下的檔案名稱時， 最好可以避免一些特殊字元比較好！例如底下這些：
 
-* ? > < ; & ! [ ] | \ ' " ` ( ) { }
-因為這些符號在文字介面下，是有特殊意義的！另外，檔案名稱的開頭為小數點『.』時， 代表這個檔案為『隱藏檔』喔！同時，由於指令下達當中，常常會使用到 -option 之類的選項， 所以你最好也避免將檔案檔名的開頭以 - 或 + 來命名啊！
+  * ? > < ; & ! [ ] | \ ' " ` ( ) { }
+    因為這些符號在文字介面下，是有特殊意義的！另外，檔案名稱的開頭為小數點『.』時， 代表這個檔案為『隱藏檔』喔！同時，由於指令下達當中，常常會使用到 -option 之類的選項， 所以你最好也避免將檔案檔名的開頭以 - 或 + 來命名啊！
 
 ## 5.3 Linux目錄配置
+
+### 5.3.1 Linux目錄配置的依據--FHS
+因為利用Linux來開發產品或distributions的社群/公司與個人實在太多了，後來就有所謂的Filesystem Hierarchy Standard (FHS)標準的出爐了！
+根據FHS(註2)的標準文件指出，他們的主要目的是希望讓使用者可以瞭解到已安裝軟體通常放置於那個目錄下， 所以他們希望獨立的軟體開發商、作業系統製作者、以及想要維護系統的使用者，都能夠遵循FHS的標準。 **也就是說，FHS的重點在於規範每個特定的目錄下應該要放置什麼樣子的資料而已**。 這樣做好處非常多，因為Linux作業系統就能夠在既有的面貌下(目錄架構不變)發展出開發者想要的獨特風格。
+<div align=center><img src="/os_note/linux_file/picture/屏幕截图%202022-10-21%20103511.png"></div>
+
+- 可分享的：可以分享給其他系統掛載使用的目錄，所以包括執行檔與使用者的郵件等資料， 是能夠分享給網路上其他主機掛載用的目錄；
+- 不可分享的：自己機器上面運作的裝置檔案或者是與程序有關的socket檔案等， 由於僅與自身機器有關，所以當然就不適合分享給其他主機了。
+- 不變的：有些資料是不會經常變動的，跟隨著distribution而不變動。 例如函式庫、文件說明檔、系統管理員所管理的主機服務設定檔等等；
+- 可變動的：經常改變的資料，例如登錄檔、一般用戶可自行收受的新聞群組等。
+
+事實上，FHS針對目錄樹架構僅定義出三層目錄底下應該放置什麼資料而已，分別是底下這三個目錄的定義：
+- / (root, 根目錄)：與開機系統有關；
+- /usr (unix software resource)：與軟體安裝/執行有關；
+- /var (variable)：與系統運作過程有關。
+
+#### 根目錄 (/) 的意義與內容：
+根目錄是整個系統最重要的一個目錄，因為不但所有的目錄都是由根目錄衍生出來的，**同時根目錄也與開機/還原/系統修復等動作有關。** 由於系統開機時需要特定的開機軟體、核心檔案、開機所需程式、函式庫等等檔案資料，若系統出現錯誤時，根目錄也必須要包含有能夠修復檔案系統的程式才行。 因為根目錄是這麼的重要，所以在FHS的要求方面，他希望根目錄不要放在非常大的分割槽內， 因為越大的分割槽妳會放入越多的資料，如此一來根目錄所在分割槽就可能會有較多發生錯誤的機會。
+
+因此FHS標準建議：**根目錄(/)所在分割槽應該越小越好， 且應用程式所安裝的軟體最好不要與根目錄放在同一個分割槽內，保持根目錄越小越好。** 如此不但效能較佳，根目錄所在的檔案系統也較不容易發生問題。
+
+有鑑於上述的說明，因此FHS定義出根目錄(/)底下應該要有底下這些次目錄的存在才好，即使沒有實體目錄，FHS也希望至少有連結檔存在才好：
+
+##### 第一部份：FHS 要求必須要存在的目錄
+- /bin:系統有很多放置執行檔的目錄，但/bin比較特殊。**因為/bin放置的是在單人維護模式下還能夠被操作的指令。 在/bin底下的指令可以被root與一般帳號所使用**，主要有：cat, chmod, chown, date, mv, mkdir, cp, bash等等常用的指令。
+- /boot:**這個目錄主要在放置開機會使用到的檔案**，包括Linux核心檔案以及開機選單與開機所需設定檔等等。 Linux kernel常用的檔名為：vmlinuz，如果使用的是grub2這個開機管理程式， 則還會存在/boot/grub2/這個目錄喔！
+
+```
+kevin@ubuntu:/$ cd boot/
+kevin@ubuntu:/boot$ ls
+config-5.4.0-128-generic  grub                          initrd.img-5.4.0-131-generic  memtest86+.elf            System.map-5.4.0-128-generic  vmlinuz-5.4.0-128-generic
+config-5.4.0-131-generic  initrd.img-5.4.0-128-generic  memtest86+.bin                memtest86+_multiboot.bin  System.map-5.4.0-131-generic  vmlinuz-5.4.0-131-generic
+```
+
+- /dev:在Linux系統上，任何裝置與周邊設備都是以檔案的型態存在於這個目錄當中的。 你只要透過存取這個目錄底下的某個檔案，就等於存取某個裝置囉～ 比要重要的檔案有/dev/null, /dev/zero, /dev/tty, /dev/loop*, /dev/sd*等等
+- /etc:系統主要的設定檔幾乎都放置在這個目錄內，例如人員的帳號密碼檔、 各種服務的啟始檔等等。一般來說，這個目錄下的各檔案屬性是可以讓一般使用者查閱的， 但是只有root有權力修改。FHS建議不要放置可執行檔(binary)在這個目錄中喔。比較重要的檔案有： /etc/modprobe.d/, /etc/passwd, /etc/fstab, /etc/issue 等等。另外 FHS 還規範幾個重要的目錄最好要存在 /etc/ 目錄下喔：
+    - /etc/opt(必要)：這個目錄在放置第三方協力軟體 /opt 的相關設定檔
+    - /etc/X11/(建議)：與 X Window 有關的各種設定檔都在這裡，尤其是 xorg.conf 這個 X Server 的設定檔。
+    - /etc/sgml/(建議)：與 SGML 格式有關的各項設定檔
+    - /etc/xml/(建議)：與 XML 格式有關的各項設定檔
+- /lib:系統的函式庫非常的多，而/lib放置的則是在開機時會用到的函式庫， 以及在/bin或/sbin底下的指令會呼叫的函式庫而已。 什麼是函式庫呢？妳可以將他想成是『外掛』，某些指令必須要有這些『外掛』才能夠順利完成程式的執行之意。 另外 FHS 還要求底下的目錄必須要存在：/lib/modules/：這個目錄主要放置可抽換式的核心相關模組(驅動程式)喔！
+- /media:	media是『媒體』的英文，顧名思義，這個/media底下放置的就是可移除的裝置啦！ 包括軟碟、光碟、DVD等等裝置都暫時掛載於此。常見的檔名有：/media/floppy, /media/cdrom等等。
+- /mnt:	如果妳想要暫時掛載某些額外的裝置，一般建議妳可以放置到這個目錄中。 在古早時候，這個目錄的用途與/media相同啦！只是有了/media之後，這個目錄就用來暫時掛載用了。
+- /opt: 	這個是給第三方協力軟體放置的目錄。什麼是第三方協力軟體啊？ 舉例來說，KDE這個桌面管理系統是一個獨立的計畫，不過他可以安裝到Linux系統中，因此KDE的軟體就建議放置到此目錄下了。 另外，如果妳想要自行安裝額外的軟體(非原本的distribution提供的)，那麼也能夠將你的軟體安裝到這裡來。 不過，以前的Linux系統中，我們還是習慣放置在/usr/local目錄下呢！
+- /run: 早期的 FHS 規定系統開機後所產生的各項資訊應該要放置到 /var/run 目錄下，新版的 FHS 則規範到 /run 底下。 由於 /run 可以使用記憶體來模擬，因此效能上會好很多！
+- /sbin: Linux有非常多指令是用來設定系統環境的，這些指令只有root才能夠利用來『設定』系統，其他使用者最多只能用來『查詢』而已。 **放在/sbin底下的為開機過程中所需要的，裡面包括了開機、修復、還原系統所需要的指令。** 至於某些伺服器軟體程式，一般則放置到/usr/sbin/當中。至於本機自行安裝的軟體所產生的系統執行檔(system binary)， 則放置到/usr/local/sbin/當中了。常見的指令包括：fdisk, fsck, ifconfig, mkfs等等。
+- /srv: srv可以視為『service』的縮寫，是一些網路服務啟動之後，這些服務所需要取用的資料目錄。 常見的服務例如WWW, FTP等等。舉例來說，WWW伺服器需要的網頁資料就可以放置在/srv/www/裡面。 不過，系統的服務資料如果尚未要提供給網際網路任何人瀏覽的話，預設還是建議放置到 /var/lib 底下即可。
+- /tmp: 這是讓一般使用者或者是正在執行的程序暫時放置檔案的地方。 這個目錄是任何人都能夠存取的，所以你需要定期的清理一下。當然，重要資料不可放置在此目錄啊！ 因為FHS甚至建議在開機時，應該要將/tmp下的資料都刪除唷！
+- /usr 第二层FHS    
+- /var 第二层FHS
+
+##### 應放置檔案內容
+- /lost+found: 這個目錄是使用標準的ext2/ext3/ext4檔案系統格式才會產生的一個目錄，目的在於當檔案系統發生錯誤時， 將一些遺失的片段放置到這個目錄下。不過如果使用的是 xfs 檔案系統的話，就不會存在這個目錄了！
+- proc:這個目錄本身是一個『虛擬檔案系統(virtual filesystem)』喔！他放置的資料都是在記憶體當中， 例如系統核心、行程資訊(process)、周邊裝置的狀態及網路狀態等等。因為這個目錄下的資料都是在記憶體當中， 所以本身不佔任何硬碟空間啊！比較重要的檔案例如：/proc/cpuinfo, /proc/dma, /proc/interrupts, /proc/ioports, /proc/net/* 等等。
+- /sys: 這個目錄其實跟/proc非常類似，也是一個虛擬的檔案系統，主要也是記錄核心與系統硬體資訊較相關的資訊。 包括目前已載入的核心模組與核心偵測到的硬體裝置資訊等等。這個目錄同樣不佔硬碟容量喔！
+
+早期 Linux 在設計的時候，若發生問題時，救援模式通常僅掛載根目錄而已，因此有五個重要的目錄被要求一定要與根目錄放置在一起， 那就是 /etc, /bin, /dev, /lib, /sbin 這五個重要目錄。現在許多的 Linux distributions 由於已經將許多非必要的檔案移出 /usr 之外了， 所以 /usr 也是越來越精簡，同時因為 /usr 被建議為『即使掛載成為唯讀，系統還是可以正常運作』的模樣，所以救援模式也能同時掛載 /usr 喔！ 
+
+#### /usr 的意義與內容：
+依據FHS的基本定義，/usr裡面放置的資料屬於可分享的與不可變動的(shareable, static)， 如果你知道如何透過網路進行分割槽的掛載(例如在伺服器篇會談到的NFS伺服器)，那麼/usr確實可以分享給區域網路內的其他主機來使用喔！
+
+**很多讀者都會誤會/usr為user的縮寫，其實usr是Unix Software Resource的縮寫， 也就是『Unix作業系統軟體資源』所放置的目錄，而不是使用者的資料啦**！這點要注意。 FHS建議所有軟體開發者，應該將他們的資料合理的分別放置到這個目錄下的次目錄，而不要自行建立該軟體自己獨立的目錄。
+
+- /usr/bin/ 	所有一般用戶能夠使用的指令都放在這裡！目前新的 CentOS 7 已經將全部的使用者指令放置於此，而使用連結檔的方式將 /bin 連結至此！ 也就是說， /usr/bin 與 /bin 是一模一樣了！另外，FHS 要求在此目錄下不應該有子目錄！
+- /usr/lib/     基本上，與 /lib 功能相同，所以 /lib 就是連結到此目錄中的！
+- /usr/local/   **系統管理員在本機自行安裝自己下載的軟體(非distribution預設提供者)，建議安裝到此目錄**， 這樣會比較便於管理。舉例來說，你的distribution提供的軟體較舊，你想安裝較新的軟體但又不想移除舊版， 此時你可以將新版軟體安裝於/usr/local/目錄下，可與原先的舊版軟體有分別啦！ 你可以自行到/usr/local去看看，該目錄下也是具有bin, etc, include, lib...的次目錄喔！
+- /usr/sbin/    非系統正常運作所需要的系統指令。最常見的就是某些網路伺服器軟體的服務指令(daemon)囉！不過基本功能與 /sbin 也差不多， 因此目前 /sbin 就是連結到此目錄中的。
+- /usr/share/   主要放置唯讀架構的資料檔案，當然也包括共享文件。在這個目錄下放置的資料幾乎是不分硬體架構均可讀取的資料， 因為幾乎都是文字檔案嘛！在此目錄下常見的還有這些次目錄：
+    - /usr/share/man：線上說明文件
+    - /usr/share/doc：軟體雜項的文件說明
+    - /usr/share/zoneinfo：與時區有關的時區檔案
+
+- /usr/games/   	與遊戲比較相關的資料放置處
+- /usr/include/     c/c++等程式語言的檔頭(header)與包含檔(include)放置處，當我們以tarball方式 (*.tar.gz 的方式安裝軟體)安裝某些資料時，會使用到裡頭的許多包含檔喔！
+- /usr/libexec/     	某些不被一般使用者慣用的執行檔或腳本(script)等等，都會放置在此目錄中。例如大部分的 X 視窗底下的操作指令， 很多都是放在此目錄下的。
+- /usr/lib<qual>/		與 /lib<qual>/功能相同，因此目前 /lib<qual> 就是連結到此目錄中
+- /usr/src/         	一般原始碼建議放置到這裡，src有source的意思。至於核心原始碼則建議放置到/usr/src/linux/目錄下。
+
+
+#### /var 的意義與內容：
+如果/usr是安裝時會佔用較大硬碟容量的目錄，**那麼/var就是在系統運作後才會漸漸佔用硬碟容量的目錄。 因為/var目錄主要針對常態性變動的檔案，包括快取(cache)、登錄檔(log file)以及某些軟體運作所產生的檔案， 包括程序檔案(lock file, run file)，或者例如MySQL資料庫的檔案等等。** 常見的次目錄有：
+##### 第一部份：FHS 要求必須要存在的目錄
+- /var/cache/	應用程式本身運作過程中會產生的一些暫存檔；
+- /var/lib/	程式本身執行的過程中，需要使用到的資料檔案放置的目錄。在此目錄下各自的軟體應該要有各自的目錄。 舉例來說，MySQL的資料庫放置到/var/lib/mysql/而rpm的資料庫則放到/var/lib/rpm去！
+- /var/lock/    锁机制实现
+- /var/log/     登錄檔放置的目錄！裡面比較重要的檔案如/var/log/messages, /var/log/wtmp(記錄登入者的資訊)等。
+- /var/mail/    放置個人電子郵件信箱的目錄
+- /var/run/     某些程式或者是服務啟動後，會將他們的PID放置在這個目錄下喔！至於PID的意義我們會在後續章節提到的。 與 /run 相同，這個目錄連結到 /run 去了！
+- /var/spool/	這個目錄通常放置一些佇列資料，所謂的『佇列』就是排隊等待其他程式使用的資料啦！ 這些資料被使用後通常都會被刪除。舉例來說，系統收到新信會放置到/var/spool/mail/中， 但使用者收下該信件後該封信原則上就會被刪除。信件如果暫時寄不出去會被放到/var/spool/mqueue/中， 等到被送出後就被刪除。如果是工作排程資料(crontab)，就會被放置到/var/spool/cron/目錄中！
+
+### 5.3.2 目錄樹(directory tree)
+```
+kevin@ubuntu:/$ ls -l
+total 1459916
+drwxr-xr-x   2 root root       4096 Oct 13 17:25 bin
+drwxr-xr-x   3 root root       4096 Oct 21 10:10 boot
+drwxrwxr-x   2 root root       4096 Mar 23  2022 cdrom
+drwxr-xr-x  17 root root       4420 Oct 21 15:39 dev
+drwxr-xr-x 144 root root      12288 Oct 20 09:53 etc
+drwxr-xr-x   3 root root       4096 Mar 23  2022 home
+lrwxrwxrwx   1 root root         33 Oct 20 09:54 initrd.img -> boot/initrd.img-5.4.0-131-generic
+lrwxrwxrwx   1 root root         33 Oct 20 09:54 initrd.img.old -> boot/initrd.img-5.4.0-128-generic
+drwxr-xr-x  21 root root       4096 Oct 13 17:25 lib
+drwxr-xr-x   2 root root       4096 Oct 13 17:25 lib64
+drwx------   2 root root      16384 Mar 24  2022 lost+found
+drwxr-xr-x   4 root root       4096 Apr 21  2022 media
+drwxr-xr-x   2 root root       4096 Feb  4  2020 mnt
+drwxr-xr-x   5 root root       4096 Oct 11 16:41 opt
+dr-xr-xr-x 429 root root          0 Oct 21 15:39 proc
+drwx------   5 root root       4096 Apr 13  2022 root
+drwxr-xr-x  29 root root        940 Oct 21 15:40 run
+drwxr-xr-x   2 root root      12288 Oct 13 17:25 sbin
+drwxr-xr-x  19 root root       4096 Oct 18 09:27 snap
+drwxr-xr-x   2 root root       4096 Feb  4  2020 srv
+-rw-------   1 root root 1494845440 Mar 23  2022 swapfile
+dr-xr-xr-x  13 root root          0 Oct 21 15:39 sys
+drwxrwxrwt  21 root root       4096 Oct 21 17:40 tmp
+drwxr-xr-x  12 root root       4096 Oct 13 15:50 usr
+drwxr-xr-x  14 root root       4096 Feb  4  2020 var
+lrwxrwxrwx   1 root root         30 Oct 20 09:54 vmlinuz -> boot/vmlinuz-5.4.0-131-generic
+lrwxrwxrwx   1 root root         30 Oct 20 09:54 vmlinuz.old -> boot/vmlinuz-5.4.0-128-generic
+```
+根據FHS的定義，妳最好能夠將/var獨立出來， 這樣對於系統的資料還有一些安全性的保護呢！因為至少/var死掉時，你的根目錄還會活著嘛！ 還能夠進入救援模式啊！
+
+### 5.3.3 絕對路徑與相對路徑
+
+除了需要特別注意的FHS目錄配置外，在檔名部分我們也要特別注意喔！因為根據檔名寫法的不同，也可將所謂的路徑(path)定義為絕對路徑(absolute)與相對路徑(relative)。 這兩種檔名/路徑的寫法依據是這樣的：
+* **絕對路徑：由根目錄(/)開始寫起的檔名或目錄名稱， 例如 /home/dmtsai/.bashrc；**
+* **相對路徑：相對於目前路徑的檔名寫法。 例如 ./home/dmtsai 或 ../../home/dmtsai/ 等等。反正開頭不是 / 就屬於相對路徑的寫法**
+
+### 5.3.4 CentOS 的觀察
+1. 透過 uname 檢查 Linux 核心與作業系統的位元版本
+```
+kevin@ubuntu:/$ uname -a
+Linux ubuntu 5.4.0-131-generic #147~18.04.1-Ubuntu SMP Sat Oct 15 13:10:18 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+kevin@ubuntu:/$ man uname
+kevin@ubuntu:/$ uname -v
+#147~18.04.1-Ubuntu SMP Sat Oct 15 13:10:18 UTC 2022
+kevin@ubuntu:/$ uname -r
+5.4.0-131-generic
+```
+
+## 5.4 重點回顧
+- Linux的每個檔案中，可分別給予擁有者、群組與其他人三種身份個別的 rwx 權限；
+- 群組最有用的功能之一，就是當你在團隊開發資源的時候，且每個帳號都可以有多個群組的支援；
+- 利用ls -l顯示的檔案屬性中，第一個欄位是檔案的權限，共有十個位元，第一個位元是檔案類型， 接下來三個為一組共三組，為擁有者、群組、其他人的權限，權限有r,w,x三種；
+- 如果檔名之前多一個『 . 』，則代表這個檔案為『隱藏檔』；
+- 若需要root的權限時，可以使用 su - 這個指令來切換身份。處理完畢則使用 exit 離開 su 的指令環境。
+- 更改檔案的群組支援可用chgrp，修改檔案的擁有者可用chown，修改檔案的權限可用chmod
+- chmod修改權限的方法有兩種，分別是符號法與數字法，數字法中r,w,x分數為4,2,1；
+  - 對檔案來講，權限的效能為：
+    - r：可讀取此一檔案的實際內容，如讀取文字檔的文字內容等；
+    - w：可以編輯、新增或者是修改該檔案的內容(但不含刪除該檔案)；
+    - x：該檔案具有可以被系統執行的權限。
+  - 對目錄來說，權限的效能為：
+    - r (read contents in directory)
+    - w (modify contents of directory)
+    - x (access directory)
+- 要開放目錄給任何人瀏覽時，應該至少也要給予r及x的權限，但w權限不可隨便給；
+- 能否讀取到某個檔案內容，跟該檔案所在的目錄權限也有關係 (目錄至少需要有 x 的權限)。
+- Linux檔名的限制為：單一檔案或目錄的最大容許檔名為 255 個英文字元或 128 個中文字元；
+- 根據FHS的官方文件指出， 他們的主要目的是希望讓使用者可以瞭解到已安裝軟體通常放置於那個目錄下
+- FHS訂定出來的四種目錄特色為：shareable, unshareable, static, variable等四類；
+- FHS所定義的三層主目錄為：/, /var, /usr三層而已；
+- 絕對路徑檔名為從根目錄 / 開始寫起，否則都是相對路徑的檔名。
+
+---
+# 第六章、Linux 檔案與目錄管理
+## 6.1 目錄與路徑
+### 6.1.1 相對路徑與絕對路徑
+
+##### 相對路徑的用途
+如果需要用到絕對路徑的話，那麼是否很麻煩呢？是的！ 如此一來每個目錄下的東西就很難對應的起來！這個時候相對路徑的寫法就顯的特別的重要了！
+
+**相对路径比较方便** 
+
+##### 絕對路徑的用途
+
+但是對於檔名的正確性來說，『絕對路徑的正確度要比較好～』。 一般來說，鳥哥會建議你，**如果是在寫程式 (shell scripts) 來管理系統的條件下，務必使用絕對路徑的寫法。** 怎麼說呢？因為絕對路徑的寫法雖然比較麻煩，但是可以肯定這個寫法絕對不會有問題。 如果使用相對路徑在程式當中，則可能由於你執行的工作環境不同，導致一些問題的發生。 這個問題在工作排程(at, cron, 第十五章)當中尤其重要！這個現象我們在十二章、shell script時，會再次的提醒你喔！ ^_^
+
+### 6.1.2 目錄的相關操作
+我們之前稍微提到變換目錄的指令是cd，還有哪些可以進行目錄操作的指令呢？ 例如建立目錄啊、刪除目錄之類的～還有，得要先知道的，就是有哪些比較特殊的目錄呢？ 舉例來說，底下這些就是比較特殊的目錄，得要用力的記下來才行：
+>.         代表此層目錄
+>..        代表上一層目錄
+>\-         代表前一個工作目錄
+>~         **代表『目前使用者身份』所在的家目錄**
+>~account  **代表 account 這個使用者的家目錄(account是個帳號名稱)**
+
+>例題：
+>   請問在Linux底下，根目錄下有沒有上層目錄(..)存在？
+>答：
+>   若使用『 ls -al / 』去查詢，可以看到根目錄下確實存在 . 與 .. 兩個目錄，再仔細的查閱， 可發現這兩個目錄的屬性與權限完全一致，這代表根目錄的上一層(..)與根目錄自己(.)是同一個目錄。
+
+```
+kevin@ubuntu:/$ cd ..
+kevin@ubuntu:/$ 
+```
+底下我們就來談一談幾個常見的處理目錄的指令吧：
+
+- cd：變換目錄
+- pwd：顯示目前的目錄
+- mkdir：建立一個新的目錄
+- rmdir：刪除一個空的目錄
+
+**cd**
+```
+kevin@ubuntu:/$ cd ~
+kevin@ubuntu:~$ pwd
+/home/kevin
+```
+
+用-实例
+```
+kevin@ubuntu:~$ cd os
+kevin@ubuntu:~/os$ cd -
+/home/kevin
+kevin@ubuntu:~$ cd os/os_note/
+kevin@ubuntu:~/os/os_note$ ls
+elementary_knowledge  install_centos  linux_command  linux_environment  linux_file
+kevin@ubuntu:~/os/os_note$ cd install_centos/
+kevin@ubuntu:~/os/os_note/install_centos$ cd -
+/home/kevin/os/os_note
+kevin@ubuntu:~/os/os_note$ 
+```
+
+**pwd**
+
+使用man pwd
+NAME
+       pwd - print name of current/working directory
+
+SYNOPSIS
+       pwd [OPTION]...
+
+DESCRIPTION
+       Print the full filename of the current working directory.
+
+       -L, --logical
+              use PWD from environment, even if it contains symlinks
+
+       -P, --physical
+              avoid all symlinks
+
+一般就用pwd吧
+
+**mkdir (建立新目錄)**
+
+>[root@study ~]# mkdir [-mp] 目錄名稱
+>選項與參數：
+>-m ：設定檔案的權限喔！直接設定，不需要看預設權限 (umask) 的臉色～
+>-p ：幫助你直接將所需要的目錄(包含上層目錄)遞迴建立起來！
+
+mkdir -m 设置权限
+```
+kevin@ubuntu:~/os/os_note$ mkdir -m 755 test
+kevin@ubuntu:~/os/os_note$ ls
+compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file  test
+```
+
+mkdir -p 设置多级文件
+```
+kevin@ubuntu:~/os/os_note$ mkdir -p compress/picture
+kevin@ubuntu:~/os/os_note$ ls
+compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file
+kevin@ubuntu:~/os/os_note$ cd compress/
+kevin@ubuntu:~/os/os_note/compress$ ls
+picture
+```
+
+**rmdir (刪除『空』的目錄)**
+```
+[root@study ~]# rmdir [-p] 目錄名稱
+選項與參數：
+-p ：連同『上層』『空的』目錄也一起刪除
+```
+
+### 6.1.3 關於執行檔路徑的變數： $PATH
+經過前一章FHS的說明後，我們知道查閱檔案屬性的指令ls完整檔名為：/bin/ls(這是絕對路徑)， 那你會不會覺得很奇怪：『為什麼我可以在任何地方執行/bin/ls這個指令呢？ 』 **為什麼我在任何目錄下輸入 ls 就一定可以顯示出一些訊息而不會說找不到該 /bin/ls 指令呢？ 這是因為環境變數 PATH 的幫助所致呀！**
+```
+kevin@ubuntu:~/os/os_note$ /bin/ls 
+compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file
+```
+
+echo $path
+```
+kevin@ubuntu:~/os/os_note$ echo $PATH
+/usr/local/riscv64-linux-musl-cross/bin:/usr/local/riscv64-unknown-elf-gcc/bin:/home/kevin/qemu-5.0.0/riscv64-linux-user:/home/kevin/qemu-5.0.0/riscv64-softmmu:/home/kevin/qemu-5.0.0:/usr/lib/ccache:/opt/ros/melodic/bin:/home/kevin/.vscode-server/bin/d045a5eda657f4d7b676dedbfa7aab8207f8a075/bin/remote-cli:/usr/local/riscv64-linux-musl-cross/bin:/usr/local/riscv64-unknown-elf-gcc/bin:/home/kevin/qemu-5.0.0/riscv64-linux-user:/home/kevin/qemu-5.0.0/riscv64-softmmu:/home/kevin/qemu-5.0.0:/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+```
+
+**PATH(一定是大寫)這個變數的內容是由一堆目錄所組成的，每個目錄中間用冒號(:)來隔開， 每個目錄是有『順序』之分的。**仔細看一下上面的輸出，妳可以發現到無論是root還是dmtsai都有 /bin 或 /usr/bin 這個目錄在PATH變數內，所以當然就能夠在任何地方執行ls來找到/bin/ls執行檔囉！因為 /bin 在 CentOS 7 當中，就是連結到 /usr/bin 去的！ 所以這兩個目錄內容會一模一樣！
+
+如果想要讓root在任何目錄均可執行/root底下的ls，那麼就將/root加入PATH當中即可。 加入的方法很簡單，就像底下這樣：
+```
+[root@study ~]# PATH="${PATH}:/root"
+```
+上面這個作法就能夠將/root加入到執行檔搜尋路徑PATH中了！不相信的話請您自行使用『echo $PATH』去查看吧！ 另外，除了 $PATH 之外，如果想要更明確的定義出變數的名稱，可以使用大括號 ${PATH} 來處理變數的呼叫喔！
+
+```
+kevin@ubuntu:~/os/os_note$ touch test.sh
+kevin@ubuntu:~/os/os_note$ vim test.sh 
+kevin@ubuntu:~/os/os_note$ chmod u+rwx test.sh 
+kevin@ubuntu:~/os/os_note$ ls
+compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file  test.sh
+kevin@ubuntu:~/os/os_note$ ./test.sh 
+hello world
+kevin@ubuntu:~/os/os_note$ mv test.sh ../
+kevin@ubuntu:~/os/os_note$ ls
+compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file
+kevin@ubuntu:~/os/os_note$ ls ..
+os_experiment  os_note  test.sh  路线图.jpg
+kevin@ubuntu:~/os/os_note$ ls
+compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file
+kevin@ubuntu:~/os/os_note$ ./test.sh
+bash: ./test.sh: No such file or directory
+kevin@ubuntu:~/os/os_note$ pwd
+/home/kevin/os/os_note
+kevin@ubuntu:~/os/os_note$ PATH="${PATH}:/home/kevin/os" #临时添加
+kevin@ubuntu:~/os/os_note$ echo $PATH
+/usr/local/riscv64-linux-musl-cross/bin:/usr/local/riscv64-unknown-elf-gcc/bin:/home/kevin/qemu-5.0.0/riscv64-linux-user:/home/kevin/qemu-5.0.0/riscv64-softmmu:/home/kevin/qemu-5.0.0:/usr/lib/ccache:/opt/ros/melodic/bin:/home/kevin/.vscode-server/bin/d045a5eda657f4d7b676dedbfa7aab8207f8a075/bin/remote-cli:/usr/local/riscv64-linux-musl-cross/bin:/usr/local/riscv64-unknown-elf-gcc/bin:/home/kevin/qemu-5.0.0/riscv64-linux-user:/home/kevin/qemu-5.0.0/riscv64-softmmu:/home/kevin/qemu-5.0.0:/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/kevin/os
+kevin@ubuntu:~/os/os_note$ test.sh
+hello world
+```
+// 命令行输入ls,test.sh 这些可执行文件之后，若当前目录没有可执行文件，在$PATH中文件寻找
+可执行文件。
+
+PATH=""
+
+- 不同身份使用者預設的PATH不同，預設能夠隨意執行的指令也不同(如root與dmtsai)；
+- PATH是可以修改的；
+- 使用絕對路徑或相對路徑直接指定某個指令的檔名來執行，會比搜尋PATH來的正確；
+- 指令應該要放置到正確的目錄下，執行才會比較方便；
+- 本目錄(.)最好不要放到PATH當中。
