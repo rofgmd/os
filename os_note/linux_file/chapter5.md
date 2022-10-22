@@ -656,3 +656,509 @@ PATH=""
 - 使用絕對路徑或相對路徑直接指定某個指令的檔名來執行，會比搜尋PATH來的正確；
 - 指令應該要放置到正確的目錄下，執行才會比較方便；
 - 本目錄(.)最好不要放到PATH當中。
+
+## 6.2 檔案與目錄管理
+談了談目錄與路徑之後，再來討論一下關於檔案的一些基本管理吧！檔案與目錄的管理上，不外乎『顯示屬性』、 『拷貝』、『刪除檔案』及『移動檔案或目錄』等等，由於檔案與目錄的管理在 Linux 當中是很重要的， 尤其是每個人自己家目錄的資料也都需要注意管理！所以我們來談一談有關檔案與目錄的一些基礎管理部分吧！
+### 6.2.1 檔案與目錄的檢視： ls
+```
+[root@study ~]# ls [-aAdfFhilnrRSt] 檔名或目錄名稱..
+[root@study ~]# ls [--color={never,auto,always}] 檔名或目錄名稱..
+[root@study ~]# ls [--full-time] 檔名或目錄名稱..
+選項與參數：
+-a  ：全部的檔案，連同隱藏檔( 開頭為 . 的檔案) 一起列出來(常用)
+-A  ：全部的檔案，連同隱藏檔，但不包括 . 與 .. 這兩個目錄
+-d  ：僅列出目錄本身，而不是列出目錄內的檔案資料(常用)
+-f  ：直接列出結果，而不進行排序 (ls 預設會以檔名排序！)
+-F  ：根據檔案、目錄等資訊，給予附加資料結構，例如：
+      *:代表可執行檔； /:代表目錄； =:代表 socket 檔案； |:代表 FIFO 檔案；
+-h  ：將檔案容量以人類較易讀的方式(例如 GB, KB 等等)列出來；
+-i  ：列出 inode 號碼，inode 的意義下一章將會介紹；
+-l  ：長資料串列出，包含檔案的屬性與權限等等資料；(常用)
+-n  ：列出 UID 與 GID 而非使用者與群組的名稱 (UID與GID會在帳號管理提到！)
+-r  ：將排序結果反向輸出，例如：原本檔名由小到大，反向則為由大到小；
+-R  ：連同子目錄內容一起列出來，等於該目錄下的所有檔案都會顯示出來；
+-S  ：以檔案容量大小排序，而不是用檔名排序；
+-t  ：依時間排序，而不是用檔名。
+--color=never  ：不要依據檔案特性給予顏色顯示；
+--color=always ：顯示顏色
+--color=auto   ：讓系統自行依據設定來判斷是否給予顏色
+--full-time    ：以完整時間模式 (包含年、月、日、時、分) 輸出
+--time={atime,ctime} ：輸出 access 時間或改變權限屬性時間 (ctime) 
+                       而非內容變更時間 (modification time)
+```
+
+所以，**當你只有下達 ls 時，預設顯示的只有：非隱藏檔的檔名、 以檔名進行排序及檔名代表的顏色顯示如此而已。**舉例來說， 你下達『 ls /etc 』之後，只有經過排序的檔名以及以藍色顯示目錄及白色顯示一般檔案，如此而已。
+
+```
+範例一：將家目錄下的所有檔案列出來(含屬性與隱藏檔)
+[root@study ~]# ls -al ~
+total 56
+dr-xr-x---.  5 root root 4096 Jun  4 19:49 .
+dr-xr-xr-x. 17 root root 4096 May  4 17:56 ..
+-rw-------.  1 root root 1816 May  4 17:57 anaconda-ks.cfg
+-rw-------.  1 root root 6798 Jun  4 19:53 .bash_history
+-rw-r--r--.  1 root root   18 Dec 29  2013 .bash_logout
+-rw-r--r--.  1 root root  176 Dec 29  2013 .bash_profile
+-rw-rw-rw-.  1 root root  176 Dec 29  2013 .bashrc
+-rw-r--r--.  1 root root  176 Jun  3 00:04 .bashrc_test
+drwx------.  4 root root   29 May  6 00:14 .cache
+drwxr-xr-x.  3 root root   17 May  6 00:14 .config
+# 這個時候你會看到以 . 為開頭的幾個檔案，以及目錄檔 (.) (..) .config 等等，
+# 不過，目錄檔檔名都是以深藍色顯示，有點不容易看清楚就是了。
+```
+
+```
+範例二：承上題，不顯示顏色，但在檔名末顯示出該檔名代表的類型(type)
+[root@study ~]# ls -alF --color=never  ~
+total 56
+dr-xr-x---.  5 root root 4096 Jun  4 19:49 ./
+dr-xr-xr-x. 17 root root 4096 May  4 17:56 ../
+-rw-------.  1 root root 1816 May  4 17:57 anaconda-ks.cfg
+-rw-------.  1 root root 6798 Jun  4 19:53 .bash_history
+-rw-r--r--.  1 root root   18 Dec 29  2013 .bash_logout
+-rw-r--r--.  1 root root  176 Dec 29  2013 .bash_profile
+-rw-rw-rw-.  1 root root  176 Dec 29  2013 .bashrc
+-rw-r--r--.  1 root root  176 Jun  3 00:04 .bashrc_test
+drwx------.  4 root root   29 May  6 00:14 .cache/
+drwxr-xr-x.  3 root root   17 May  6 00:14 .config/
+# 注意看到顯示結果的第一行，嘿嘿～知道為何我們會下達類似 ./command 
+# 之類的指令了吧？因為 ./ 代表的是『目前目錄下』的意思啊！至於什麼是 FIFO/Socket ？
+# 請參考前一章節的介紹啊！另外，那個.bashrc 時間僅寫2013，能否知道詳細時間？
+```
+
+```
+kevin@ubuntu:~/os$ ls -al --full-time
+total 528
+drwxrwxr-x  6 kevin kevin   4096 2022-10-21 22:00:02.064017917 +0800 .
+drwxr-xr-x 40 kevin kevin   4096 2022-10-22 10:42:41.948637341 +0800 ..
+drwxrwxr-x  9 kevin kevin   4096 2022-10-21 22:01:43.407121353 +0800 .git
+-rw-rw-r--  1 kevin kevin    141 2022-10-13 17:55:47.039085278 +0800 .gitmodules
+drwxrwxr-x  5 kevin kevin   4096 2022-10-18 15:42:59.322451909 +0800 os_experiment
+drwxrwxr-x  8 kevin kevin   4096 2022-10-21 21:38:44.634544445 +0800 os_note
+drwxrwxr-x  2 kevin kevin   4096 2022-10-19 17:33:32.701266390 +0800 .vscode
+-rwxrw-rw-  1 kevin kevin 508889 2022-10-09 15:33:14.941494000 +0800 路线图.jpg
+```
+
+無論如何， ls 最常被使用到的功能還是那個 -l 的選項，為此，很多 distribution 在預設的情況中， 已經將 ll (L 的小寫) 設定成為 ls -l 的意思了！其實，那個功能是 Bash shell 的 alias 功能呢～也就是說，我們直接輸入 ll 就等於是輸入 ls -l 是一樣的～關於這部分，我們會在後續 bash shell 時再次的強調滴～
+```
+kevin@ubuntu:~/os$ ls -al
+total 528
+drwxrwxr-x  6 kevin kevin   4096 Oct 21 22:00 .
+drwxr-xr-x 40 kevin kevin   4096 Oct 22 10:42 ..
+drwxrwxr-x  9 kevin kevin   4096 Oct 21 22:01 .git
+-rw-rw-r--  1 kevin kevin    141 Oct 13 17:55 .gitmodules
+drwxrwxr-x  5 kevin kevin   4096 Oct 18 15:42 os_experiment
+drwxrwxr-x  8 kevin kevin   4096 Oct 21 21:38 os_note
+drwxrwxr-x  2 kevin kevin   4096 Oct 19 17:33 .vscode
+-rwxrw-rw-  1 kevin kevin 508889 Oct  9 15:33 路线图.jpg
+kevin@ubuntu:~/os$ ls -l
+total 508
+drwxrwxr-x 5 kevin kevin   4096 Oct 18 15:42 os_experiment
+drwxrwxr-x 8 kevin kevin   4096 Oct 21 21:38 os_note
+-rwxrw-rw- 1 kevin kevin 508889 Oct  9 15:33 路线图.jpg
+```
+
+### 6.2.2 複製、刪除與移動： cp, rm, mv
+要複製檔案，請使用 cp (copy) 這個指令即可～不過， cp 這個指令的用途可多了～ 除了單純的複製之外，還可以建立連結檔 (就是捷徑囉)，比對兩檔案的新舊而予以更新， 以及複製整個目錄等等的功能呢！至於移動目錄與檔案，則使用 mv (move)， 這個指令也可以直接拿來作更名 (rename) 的動作喔！至於移除嗎？那就是 rm (remove) 這個指令囉～底下我們就來瞧一瞧先～
+
+**cp (複製檔案或目錄)**
+```
+[root@study ~]# cp [-adfilprsu] 來源檔(source) 目標檔(destination)
+[root@study ~]# cp [options] source1 source2 source3 .... directory
+選項與參數：
+-a  ：相當於 -dr --preserve=all 的意思，至於 dr 請參考下列說明；(常用)
+-d  ：若來源檔為連結檔的屬性(link file)，則複製連結檔屬性而非檔案本身；
+-f  ：為強制(force)的意思，若目標檔案已經存在且無法開啟，則移除後再嘗試一次；
+-i  ：若目標檔(destination)已經存在時，在覆蓋時會先詢問動作的進行(常用)
+-l  ：進行硬式連結(hard link)的連結檔建立，而非複製檔案本身；
+-p  ：連同檔案的屬性(權限、用戶、時間)一起複製過去，而非使用預設屬性(備份常用)；
+-r  ：遞迴持續複製，用於目錄的複製行為；(常用)
+-s  ：複製成為符號連結檔 (symbolic link)，亦即『捷徑』檔案；
+-u  ：destination 比 source 舊才更新 destination，或 destination 不存在的情況下才複製。
+--preserve=all ：除了 -p 的權限相關參數外，還加入 SELinux 的屬性, links, xattr 等也複製了。
+最後需要注意的，如果來源檔有兩個以上，則最後一個目的檔一定要是『目錄』才行！
+```
+這個 cp 的功能很多，由於我們常常會進行一些資料的複製，所以也會常常用到這個指令的。 一般來說，我們如果去複製別人的資料 (當然，該檔案你必須要有 read 的權限才行啊！ ^_^) 時， 總是希望複製到的資料最後是我們自己的，所以，在預設的條件中， **cp 的來源檔與目的檔的權限是不同的，目的檔的擁有者通常會是指令操作者本身**。舉例來說， **上面的範例二中，由於我是 root 的身份，因此複製過來的檔案擁有者與群組就改變成為 root 所有了！**這樣說，可以明白嗎？^_^
+
+由於具有這個特性，**因此當我們在進行備份的時候，某些需要特別注意的特殊權限檔案， 例如密碼檔 (/etc/shadow) 以及一些設定檔，就不能直接以 cp 來複製，而必須要加上 -a 或者是 -p 等等可以完整複製檔案權限的選項才行！**另外，如果你想要複製檔案給其他的使用者， 也必須要注意到檔案的權限(包含讀、寫、執行以及檔案擁有者等等)， 否則，其他人還是無法針對你給予的檔案進行修訂的動作喔！注意注意！
+
+```
+範例三：複製 /etc/ 這個目錄下的所有內容到 /tmp 底下
+[root@study tmp]# cp /etc/ /tmp
+cp: omitting directory `/etc'   <== 如果是目錄則不能直接複製，要加上 -r 的選項
+[root@study tmp]# cp -r /etc/ /tmp
+# 還是要再次的強調喔！ -r 是可以複製目錄，但是，檔案與目錄的權限可能會被改變
+# 所以，也可以利用『 cp -a /etc /tmp 』來下達指令喔！尤其是在備份的情況下！
+```
+
+範例四可有趣了！**使用 -l 及 -s 都會建立所謂的連結檔(link file)，但是這兩種連結檔卻有不一樣的情況。**這是怎麼一回事啊？ **那個 -l 就是所謂的實體連結(hard link)**，**至於 -s 則是符號連結(symbolic link)**， 簡單來說，**bashrc_slink 是一個『捷徑』，這個捷徑會連結到bashrc去！所以你會看到檔名右側會有個指向(->)的符號！**
+```
+範例四：將範例一複製的 bashrc 建立一個連結檔 (symbolic link)
+[root@study tmp]# ls -l bashrc
+-rw-r--r--. 1 root root 176 Jun 11 19:01 bashrc  <==先觀察一下檔案情況
+[root@study tmp]# cp -s bashrc bashrc_slink
+[root@study tmp]# cp -l bashrc bashrc_hlink
+[root@study tmp]# ls -l bashrc*
+-rw-r--r--. 2 root root 176 Jun 11 19:01 bashrc         <==與原始檔案不太一樣了！
+-rw-r--r--. 2 root root 176 Jun 11 19:01 bashrc_hlink
+lrwxrwxrwx. 1 root root   6 Jun 11 19:06 bashrc_slink -> bashrc
+```
+>下面是自我实践
+测试出，cp -s 是符号链接，cp -l创建了实体文件
+```
+kevin@ubuntu:~/os$ file ltext.txt 
+ltext.txt: ASCII text
+kevin@ubuntu:~/os$ file stest 
+stest: symbolic link to test.txt
+```
+
+```
+kevin@ubuntu:~/os$ cp -s test.txt stest
+kevin@ubuntu:~/os$ ls
+ltext.txt  os_experiment  os_note  stest  test.txt  路线图.jpg
+kevin@ubuntu:~/os$ ls -l
+total 508
+-rwxrw-r-- 2 kevin kevin      0 Oct 22 19:56 ltext.txt
+drwxrwxr-x 5 kevin kevin   4096 Oct 18 15:42 os_experiment
+drwxrwxr-x 8 kevin kevin   4096 Oct 22 19:57 os_note
+lrwxrwxrwx 1 kevin kevin      8 Oct 22 20:00 stest -> test.txt
+-rwxrw-r-- 2 kevin kevin      0 Oct 22 19:56 test.txt
+-rwxrw-rw- 1 kevin kevin 508889 Oct  9 15:33 路线图.jpg
+kevin@ubuntu:~/os$ ls -a
+.  ..  .git  .gitmodules  ltext.txt  os_experiment  os_note  stest  test.txt  .vscode  路线图.jpg
+kevin@ubuntu:~/os$ file stest 
+stest: symbolic link to test.txt
+kevin@ubuntu:~/os$ vim test.txt 
+kevin@ubuntu:~/os$ ls
+ltext.txt  os_experiment  os_note  stest  test.txt  路线图.jpg
+kevin@ubuntu:~/os$ cat ltext.txt 
+hello world
+kevin@ubuntu:~/os$ cat stest 
+hello world
+```
+
+cp -u 备份
+```
+範例五：若 ~/.bashrc 比 /tmp/bashrc 新才複製過來
+[root@study tmp]# cp -u ~/.bashrc /tmp/bashrc
+# 這個 -u 的特性，是在目標檔案與來源檔案有差異時，才會複製的。
+# 所以，比較常被用於『備份』的工作當中喔！ ^_^
+```
+
+```
+範例六：將範例四造成的 bashrc_slink 複製成為 bashrc_slink_1 與bashrc_slink_2
+[root@study tmp]# cp bashrc_slink bashrc_slink_1
+[root@study tmp]# cp -d bashrc_slink bashrc_slink_2
+[root@study tmp]# ls -l bashrc bashrc_slink*
+-rw-r--r--. 2 root root 176 Jun 11 19:01 bashrc
+lrwxrwxrwx. 1 root root   6 Jun 11 19:06 bashrc_slink -> bashrc
+-rw-r--r--. 1 root root 176 Jun 11 19:09 bashrc_slink_1            <==與原始檔案相同
+lrwxrwxrwx. 1 root root   6 Jun 11 19:10 bashrc_slink_2 -> bashrc  <==是連結檔！
+# 這個例子也是很有趣喔！原本複製的是連結檔，但是卻將連結檔的實際檔案複製過來了
+# 也就是說，如果沒有加上任何選項時，cp複製的是原始檔案，而非連結檔的屬性！
+# 若要複製連結檔的屬性，就得要使用 -d 的選項了！如 bashrc_slink_2 所示。
+
+範例七：將家目錄的 .bashrc 及 .bash_history 複製到 /tmp 底下
+[root@study tmp]# cp ~/.bashrc ~/.bash_history /tmp
+# 可以將多個資料一次複製到同一個目錄去！最後面一定是目錄！
+```
+
+##### rm (移除檔案或目錄)
+```
+[root@study ~]# rm [-fir] 檔案或目錄
+選項與參數：
+-f  ：就是 force 的意思，忽略不存在的檔案，不會出現警告訊息；
+-i  ：互動模式，在刪除前會詢問使用者是否動作
+-r  ：遞迴刪除啊！最常用在目錄的刪除了！這是非常危險的選項！！！
+```
+
+這是移除的指令(remove)，要注意的是，通常在Linux系統下，為了怕檔案被 root 誤殺，所以很多 distributions 都已經預設加入 -i 這個選項了！而如果要連目錄下的東西都一起殺掉的話， 例如子目錄裡面還有子目錄時，那就要使用 -r 這個選項了！不過，使用『 rm -r 』這個指令之前，請千萬注意了，因為該目錄或檔案『肯定』會被 root 殺掉！因為系統不會再次詢問你是否要砍掉呦！所以那是個超級嚴重的指令下達呦！ 得特別注意！不過，如果你確定該目錄不要了，那麼使用 rm -r 來循環殺掉是不錯的方式！
+
+```
+rm -r [filename]/ #删除该文件，包括该文件下的所有文件
+rm -r [filename]/* #删除该文件下的所有文件，但这个文件保留
+
+kevin@ubuntu:~/os$ mkdir test
+kevin@ubuntu:~/os$ mkdir test/test1 test/test2
+kevin@ubuntu:~/os$ ls test/
+test1  test2
+kevin@ubuntu:~/os$ rm -r test/*
+kevin@ubuntu:~/os$ ls
+os_experiment  os_note  test  路线图.jpg
+kevin@ubuntu:~/os$ mkdir test/test1 test/test2
+kevin@ubuntu:~/os$ ls test/
+test1  test2
+kevin@ubuntu:~/os$ rm -r test/
+kevin@ubuntu:~/os$ ls
+os_experiment  os_note  路线图.jpg
+```
+
+**example**
+另外，範例四也是很有趣的例子，我們在之前就談過，檔名最好不要使用 "-" 號開頭， 因為 "-" 後面接的是選項，因此，單純的使用『 rm -aaa- 』系統的指令就會誤判啦！ 那如果使用後面會談到的正規表示法時，還是會出問題的！所以，只能用避過首位字元是 "-" 的方法啦！ **就是加上本目錄『 ./ 』即可！**如果 man rm 的話，其實還有一種方法，那就是『 rm -- -aaa- 』也可以啊！
+```
+範例四：刪除一個帶有 - 開頭的檔案
+[root@study tmp]# touch ./-aaa-  <==touch這個指令可以建立空檔案！
+[root@study tmp]# ls -l 
+-rw-r--r--. 1 root   root       0 Jun 11 19:22 -aaa-  <==檔案大小為0，所以是空檔案
+[root@study tmp]# rm -aaa-
+rm: invalid option -- 'a'                    <== 因為 "-" 是選項嘛！所以系統誤判了！
+Try 'rm ./-aaa-' to remove the file `-aaa-'. <== 新的 bash 有給建議的
+Try 'rm --help' for more information.
+[root@study tmp]# rm ./-aaa-
+```
+
+##### mv (移動檔案與目錄，或更名)
+```
+[root@study ~]# mv [-fiu] source destination
+[root@study ~]# mv [options] source1 source2 source3 .... directory
+選項與參數：
+-f  ：force 強制的意思，如果目標檔案已經存在，不會詢問而直接覆蓋；
+-i  ：若目標檔案 (destination) 已經存在時，就會詢問是否覆蓋！
+-u  ：若目標檔案已經存在，且 source 比較新，才會更新 (update)
+```
+
+
+### 6.2.3 取得路徑的檔案名稱與目錄名稱
+每個檔案的完整檔名包含了前面的目錄與最終的檔名，而每個檔名的長度都可以到達 255 個字元耶！ 那麼你怎麼知道那個是檔名？那個是目錄名？嘿嘿！就是利用斜線 (/) 來分辨啊！ 其實，取得檔名或者是目錄名稱，一般的用途應該是在寫程式的時候用來判斷之用的啦～ 所以，這部分的指令可以用在第三篇內的 shell scripts 裡頭喔！ 底下我們簡單的以幾個範例來談一談 basename 與 dirname 的用途！
+```
+[root@study ~]# basename /etc/sysconfig/network
+network         <== 很簡單！就取得最後的檔名～
+[root@study ~]# dirname /etc/sysconfig/network
+/etc/sysconfig  <== 取得的變成目錄名了！
+```
+
+## 6.3 檔案內容查閱
+如果我們要查閱一個檔案的內容時，該如何是好呢？這裡有相當多有趣的指令可以來分享一下： 最常使用的顯示檔案內容的指令可以說是 cat 與 more 及 less 了！此外，如果我們要查看一個很大型的檔案 (好幾百MB時)，但是我們只需要後端的幾行字而已，那麼該如何是好？呵呵！用 tail 呀，此外， tac 這個指令也可以達到這個目的喔！好了，說說各個指令的用途吧！
+- cat  由第一行開始顯示檔案內容
+- tac  從最後一行開始顯示，可以看出 tac 是 cat 的倒著寫！
+- nl   顯示的時候，順道輸出行號！
+- more 一頁一頁的顯示檔案內容
+- less 與 more 類似，但是比 more 更好的是，他可以往前翻頁！
+- head 只看頭幾行
+- tail 只看尾巴幾行
+- od   以二進位的方式讀取檔案內容！
+
+##### cat(concatenate)
+```
+[root@study ~]# cat [-AbEnTv]
+選項與參數：
+-A  ：相當於 -vET 的整合選項，可列出一些特殊字符而不是空白而已；
+-b  ：列出行號，僅針對非空白行做行號顯示，空白行不標行號！
+-E  ：將結尾的斷行字元 $ 顯示出來；
+-n  ：列印出行號，連同空白行也會有行號，與 -b 的選項不同；
+-T  ：將 [tab] 按鍵以 ^I 顯示出來；
+-v  ：列出一些看不出來的特殊字符
+```
+
+```
+kevin@ubuntu:~/os$ cat test.txt 
+test 1
+test 2
+
+test 3
+test 4
+
+test 5
+test 6
+kevin@ubuntu:~/os$ cat -n test.txt 
+     1  test 1
+     2  test 2
+     3
+     4  test 3
+     5  test 4
+     6
+     7  test 5
+     8  test 6
+kevin@ubuntu:~/os$ cat -A test.txt 
+test 1$
+test 2$
+$
+test 3$
+test 4$
+$
+test 5$
+test 6$
+```
+
+##### tac(反向列示)
+
+tac 這個好玩了！怎麼說呢？詳細的看一下， cat 與 tac ，有沒有發現呀！對啦！ tac 剛好是將 cat 反寫過來，所以他的功能就跟 cat 相反啦， cat 是由『第一行到最後一行連續顯示在螢幕上』，而 tac 則是『 由最後一行到第一行反向在螢幕上顯示出來 』，很好玩吧！
+
+```
+kevin@ubuntu:~/os$ tac test.txt 
+test 6
+test 5
+
+test 4
+test 3
+
+test 2
+test 1
+```
+
+##### nl (添加行號列印)
+```
+[root@study ~]# nl [-bnw] 檔案
+選項與參數：
+-b  ：指定行號指定的方式，主要有兩種：
+      -b a ：表示不論是否為空行，也同樣列出行號(類似 cat -n)；
+      -b t ：如果有空行，空的那一行不要列出行號(預設值)；
+-n  ：列出行號表示的方法，主要有三種：
+      -n ln ：行號在螢幕的最左方顯示；
+      -n rn ：行號在自己欄位的最右方顯示，且不加 0 ；
+      -n rz ：行號在自己欄位的最右方顯示，且加 0 ；
+-w  ：行號欄位的佔用的字元數。
+```
+使用案例
+```
+kevin@ubuntu:~/os$ nl test.txt 
+     1  test 1
+     2  test 2
+       
+     3  test 3
+     4  test 4
+       
+     5  test 5
+     6  test 6
+```
+空行显示行号
+```
+kevin@ubuntu:~/os$ nl -b a test.txt 
+     1  test 1
+     2  test 2
+     3
+     4  test 3
+     5  test 4
+     6
+     7  test 5
+     8  test 6
+```
+行号最左
+```
+kevin@ubuntu:~/os$ nl -b a -n ln test.txt 
+1       test 1
+2       test 2
+3     
+4       test 3
+5       test 4
+6     
+7       test 5
+8       test 6
+```
+
+### 6.3.2 可翻頁檢視
+**前面提到的 nl 與 cat, tac 等等，都是一次性的將資料一口氣顯示到螢幕上面**，那有沒有可以進行一頁一頁翻動的指令啊？ 讓我們可以一頁一頁的觀察，才不會前面的資料看不到啊～呵呵！有的！那就是 more 與 less 囉～
+
+```
+kevin@ubuntu:~/os$ more os_note/linux_environment/chapter2_Linux_environment.md 
+#Linux 环境
+---
+## Linux 硬件搭配
+**因為，各個元件或裝置在Linux底下都是『一個檔案！』**  
+CPU
+RAM:主記憶體是越大越好！事實上在Linux伺服器中，主記憶體的重要性比CPU還要高的多！因為如果主記憶體不夠大， 就會使用到硬碟的記憶體置換空間(swap)。 而由計算機概論的內容我們知道硬碟比記憶體的速度要慢的多， 所以主
+記憶體太小可能會影響到整體系統的效能的！
+#### 各硬體裝置在Linux中的檔名
+『在Linux系統中，每個裝置都被當成一個檔案來對待』 舉例來說，SATA介面的硬碟的檔案名稱即為/dev/sd[a-d]，其中， 括號內的字母為a-d當中的任意一個，亦即有/dev/sda, /dev/sdb, /dev/sdc, 及 /dev/sdd這四個檔案的意思。
+>在Linux這個系統當中，幾乎所有的硬體裝置檔案都在/dev這個目錄內， 所以你會看到/dev/sda, /dev/sr0等等的檔名喔。
+
+**各种设备在Linux中的名字**
+![设备名称](/os_note/linux_environment/picture/各类设备名称.png)
+usb,sata /dev/sd[a-p]
+floppy disk /dev/fd[0-1]
+```
+
+- Enter 下一行
+- Space 下一页
+- /字串         ：代表在這個顯示的內容當中，向下搜尋『字串』這個關鍵字；
+- :f            ：立刻顯示出檔名以及目前顯示的行數；
+- q             ：代表立刻離開 more ，不再顯示該檔案內容。
+- b 或 [ctrl]-b ：代表往回翻頁，不過這動作只對檔案有用，對管線無用。
+
+##### less (一頁一頁翻動)
+```
+kevin@ubuntu:~/os$ less os_note/linux_environment/chapter2_Linux_environment.md
+```
+
+- 空白鍵    ：向下翻動一頁；
+- [pagedown]：向下翻動一頁；
+- [pageup]  ：向上翻動一頁；
+- /字串     ：向下搜尋『字串』的功能；
+- ?字串     ：向上搜尋『字串』的功能；
+- n         ：重複前一個搜尋 (與 / 或 ? 有關！)
+- N         ：反向的重複前一個搜尋 (與 / 或 ? 有關！)
+- g         ：前進到這個資料的第一行去；
+- G         ：前進到這個資料的最後一行去 (注意大小寫)；
+- q         ：離開 less 這個程式；
+
+### 6.3.3 資料擷取
+
+##### head(取出前几行，默认10行)
+我們可以將輸出的資料作一個最簡單的擷取，那就是取出檔案前面幾行 (head) 或取出後面幾行 (tail) 文字的功能。 不過，要注意的是， head 與 tail 都是以『行』為單位來進行資料擷取的喔！
+
+```
+[root@study ~]# head [-n number] 檔案 
+選項與參數：
+-n  ：後面接數字，代表顯示幾行的意思
+
+[root@study ~]# head /etc/man_db.conf
+# 預設的情況中，顯示前面十行！若要顯示前 20 行，就得要這樣：
+[root@study ~]# head -n 20 /etc/man_db.conf
+
+kevin@ubuntu:~/os$ head os_note/elementary_knowledge/linux_elementary_knowledge.md 
+# Linux 基础知识笔记
+---
+## 发展历史
+
+<font size="4">**Unix**</font> 
+1973诞生，1977 BSD诞生
+
+<font size="4">**GNU**</font> 
+- gcc 
+- bash shell
+```
+
+##### tail (取出後面幾行)
+```
+[root@study ~]# tail [-n number] 檔案 
+選項與參數：
+-n  ：後面接數字，代表顯示幾行的意思
+-f  ：表示持續偵測後面所接的檔名，要等到按下[ctrl]-c才會結束tail的偵測
+```
+>
+>例題：
+    假如我想要顯示 /etc/man_db.conf 的第 11 到第 20 行呢？
+答：
+    這個應該不算難，想一想，在第 11 到第 20 行，那麼我取前 20 行，再取後十行，所以結果就是：『 head -n 20 /etc/man_db.conf | tail -n 10 』，這樣就可以得到第 11 到第 20 行之間的內容了！
+    這兩個指令中間有個管線 (|) 的符號存在，這個管線的意思是：『前面的指令所輸出的訊息，請透過管線交由後續的指令繼續使用』的意思。 所以， head -n 20 /etc/man_db.conf 會將檔案內的 20 行取出來，但不輸出到螢幕上，而是轉交給後續的 tail 指令繼續處理。 因此 tail 『不需要接檔名』，因為 tail 所需要的資料是來自於 head 處理後的結果！這樣說，有沒有理解？
+    更多的管線命令，我們會在第三篇繼續解釋的！
+
+### 6.3.4 非純文字檔： od
+我們上面提到的，都是在查閱純文字檔的內容。那麼萬一我們想要查閱非文字檔，舉例來說，例如 /usr/bin/passwd 這個執行檔的內容時， 又該如何去讀出資訊呢？事實上，由於執行檔通常是 binary file ，使用上頭提到的指令來讀取他的內容時， 確實會產生類似亂碼的資料啊！那怎麼辦？沒關係，我們可以利用 od 這個指令來讀取喔！
+
+```
+[root@study ~]# od [-t TYPE] 檔案
+選項或參數：
+-t  ：後面可以接各種『類型 (TYPE)』的輸出，例如：
+      a       ：利用預設的字元來輸出；
+      c       ：使用 ASCII 字元來輸出
+      d[size] ：利用十進位(decimal)來輸出資料，每個整數佔用 size bytes ；
+      f[size] ：利用浮點數值(floating)來輸出資料，每個數佔用 size bytes ；
+      o[size] ：利用八進位(octal)來輸出資料，每個整數佔用 size bytes ；
+      x[size] ：利用十六進位(hexadecimal)來輸出資料，每個整數佔用 size bytes ；
+
+```
+
+其中，size是一个表示相应数据类型字节数量的十进制整数，或采用C语言的数据类型字符表示字节数量。例如，对于d、o、u和x类型标志，可用C表示一个字符，S表示一个短整数，I表示一个整数，L表示一个长整数，对于f类型标志，可用F表示一个浮点数，D表示一个双精度的浮点数，L表示长的双精度浮点数等。
+```
+範例一：請將/usr/bin/passwd的內容使用ASCII方式來展現！
+[root@study ~]# od -t c /usr/bin/passwd
+0000000 177   E   L   F 002 001 001  \0  \0  \0  \0  \0  \0  \0  \0  \0
+0000020 003  \0   >  \0 001  \0  \0  \0 364   3  \0  \0  \0  \0  \0  \0
+0000040   @  \0  \0  \0  \0  \0  \0  \0   x   e  \0  \0  \0  \0  \0  \0
+0000060  \0  \0  \0  \0   @  \0   8  \0  \t  \0   @  \0 035  \0 034  \0
+0000100 006  \0  \0  \0 005  \0  \0  \0   @  \0  \0  \0  \0  \0  \0  \0
+.....(後面省略)....
+# 最左邊第一欄是以 8 進位來表示bytes數。以上面範例來說，第二欄0000020代表開頭是
+# 第 16 個 byes (2x8) 的內容之意。
+```
