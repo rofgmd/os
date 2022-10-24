@@ -1162,3 +1162,272 @@ kevin@ubuntu:~/os$ head os_note/elementary_knowledge/linux_elementary_knowledge.
 # 最左邊第一欄是以 8 進位來表示bytes數。以上面範例來說，第二欄0000020代表開頭是
 # 第 16 個 byes (2x8) 的內容之意。
 ```
+
+```
+### 将password 以八进制ascii码输出
+kevin@ubuntu:~/os$ echo password | od -t oCc
+0000000 160 141 163 163 167 157 162 144 012
+          p   a   s   s   w   o   r   d  \n
+0000011
+```
+
+### 6.3.5 修改檔案時間或建置新檔： touch
+
+我們在 ls 這個指令的介紹時，有稍微提到每個檔案在linux底下都會記錄許多的時間參數， 其實是有三個主要的變動時間，那麼三個時間的意義是什麼呢？
+
+- modification time (mtime)：
+當該檔案的『內容資料』變更時，就會更新這個時間！內容資料指的是檔案的內容，而不是檔案的屬性或權限喔！
+
+- status time (ctime)：
+當該檔案的『狀態 (status)』改變時，就會更新這個時間，舉例來說，像是權限與屬性被更改了，都會更新這個時間啊。
+
+- access time (atime)：
+當『該檔案的內容被取用』時，就會更新這個讀取時間 (access)。舉例來說，我們使用 cat 去讀取 /etc/man_db.conf ， 就會更新該檔案的 atime 了。
+
+看到了嗎？在預設的情況下，ls 顯示出來的是該檔案的 mtime ，也就是這個檔案的內容上次被更動的時間。 至於鳥哥的系統是在 5 月 4 號的時候安裝的，因此，這個檔案被產生導致狀態被更動的時間就回溯到那個時間點了(ctime)！ 而還記得剛剛我們使用的範例當中，有使用到man_db.conf這個檔案啊，所以啊，他的 atime 就會變成剛剛使用的時間了！
+
+檔案的時間是很重要的，因為，如果檔案的時間誤判的話，可能會造成某些程式無法順利的運作。 OK！那麼萬一我發現了一個檔案來自未來，該如何讓該檔案的時間變成『現在』的時刻呢？ 很簡單啊！就用『touch』這個指令即可！
+
+在上面這個案例當中我們使用了『ll』這個指令(兩個英文L的小寫)，這個指令其實就是『ls -l』的意思， ll本身不存在，是被『做出來』的一個命令別名。相關的命令別名我們會在bash章節當中詳談的，**這裡先知道ll="ls -l"即可。** **至於分號『 ; 』則代表連續指令的下達啦！你可以在一行指令當中寫入多重指令， 這些指令可以『依序』執行。**由上面的指令我們會知道ll那一行有三個指令被下達在同一行中。
+
+無論如何， touch 這個指令最常被使用的情況是：
+
+- 建立一個空的檔案；
+- 將某個檔案日期修訂為目前 (mtime 與 atime)
+
+## 6.4 檔案與目錄的預設權限與隱藏權限
+由第五章、Linux檔案權限的內容我們可以知道一個檔案有若干個屬性， 包括讀寫執行(r, w, x)等基本權限，及是否為目錄 (d) 與檔案 (-) 或者是連結檔 (l) 等等的屬性！ 要修改屬性的方法在前面也約略提過了(chgrp, chown, chmod) ，本小節會再加強補充一下！
+
+除了基本r, w, x權限外，在Linux傳統的Ext2/Ext3/Ext4檔案系統下，我們還可以設定其他的系統隱藏屬性， 這部份可使用 chattr 來設定，而以 lsattr 來查看，最重要的屬性就是可以設定其不可修改的特性！讓連檔案的擁有者都不能進行修改！ 這個屬性可是相當重要的，尤其是在安全機制上面 (security)！比較可惜的是，在 CentOS 7.x 當中利用 xfs 作為預設檔案系統， 但是 xfs 就沒有支援所有的 chattr 的參數了！僅有部份參數還有支援而已！
+
+首先，先來複習一下上一章談到的權限概念，將底下的例題看一看先：
+
+### 6.4.1 檔案預設權限：umask
+OK！那麼現在我們知道如何建立或者是改變一個目錄或檔案的屬性了，不過， 你知道當你建立一個新的檔案或目錄時，他的預設權限會是什麼嗎？呵呵！那就與 umask 這個玩意兒有關了！那麼 umask 是在搞什麼呢？基本上， **umask 就是指定 『目前使用者在建立檔案或目錄時候的權限預設值』**， 那麼如何得知或設定 umask 呢？他的指定條件以底下的方式來指定：
+
+```
+kevin@ubuntu:~/os$ umask
+0002
+kevin@ubuntu:~/os$ man umask
+kevin@ubuntu:~/os$ umask -S
+u=rwx,g=rwx,o=rx
+```
+
+查閱的方式有兩種，一種可以直接輸入 umask ，就可以看到數字型態的權限設定分數， 一種則是加入 -S (Symbolic) 這個選項，就會以符號類型的方式來顯示出權限了！ 奇怪的是，怎麼 umask 會有四組數字啊？不是只有三組嗎？是沒錯啦。 第一組是特殊權限用的，我們先不要理他，所以先看後面三組即可。
+
+在預設權限的屬性上，目錄與檔案是不一樣的。**從第五章我們知道 x 權限對於目錄是非常重要的！ 但是一般檔案的建立則不應該有執行的權限，因為一般檔案通常是用在於資料的記錄嘛！當然不需要執行的權限了。** 因此，預設的情況如下：
+- 若使用者建立為『檔案』則預設『沒有可執行( x )權限』，亦即只有 rw 這兩個項目，也就是最大為 666 分，預設權限如下：
+-rw-rw-rw-
+- 若使用者建立為『目錄』，則由於 x 與是否可以進入此目錄有關，因此預設為所有權限均開放，亦即為 777 分，預設權限如下：
+drwxrwxrwx
+
+要注意的是，**umask 的分數指的是『該預設值需要減掉的權限！』**因為 r、w、x 分別是 4、2、1 分，所以囉！也就是說，當要拿掉能寫的權限，就是輸入 2 分，而如果要拿掉能讀的權限，也就是 4 分，那麼要拿掉讀與寫的權限，也就是 6 分，而要拿掉執行與寫入的權限，也就是 3 分，這樣瞭解嗎？請問你， 5 分是什麼？呵呵！ 就是讀與執行的權限啦！
+
+>建立檔案時：(-rw-rw-rw-) - (-----w--w-) ==> -rw-r--r--
+>建立目錄時：(drwxrwxrwx) - (d----w--w-) ==> drwxr-xr-x
+
+#### umask的利用與重要性：專題製作
+這個問題很常發生啊！舉上面的案例來看就好了，你看一下 test1 的權限是幾分？ 644 呢！意思是『如果 umask 訂定為 022 ，那新建的資料只有使用者自己具有 w 的權限， 同群組的人只有 r 這個可讀的權限而已，並無法修改喔！』這樣要怎麼共同製作專題啊！您說是吧！
+
+所以，當我們需要新建檔案給同群組的使用者共同編輯時，那麼 umask 的群組就不能拿掉 2 這個 w 的權限！ 所以囉， umask 就得要是 002 之類的才可以！這樣新建的檔案才能夠是 -rw-rw-r-- 的權限模樣喔！ 那麼如何設定 umask 呢？簡單的很，直接在 umask 後面輸入 002 就好了！
+
+```
+[root@study ~]# umask 002
+[root@study ~]# touch test3
+[root@study ~]# mkdir test4
+[root@study ~]# ll -d test[34]   # 中括號 [ ] 代表中間有個指定的字元，而不是任意字元的意思
+-rw-rw-r--. 1 root root 0  6月 16 01:12 test3
+drwxrwxr-x. 2 root root 6  6月 16 01:12 test4
+```
+所以說，這個 umask 對於新建檔案與目錄的預設權限是很有關係的！這個概念可以用在任何伺服器上面， 尤其是未來在你架設檔案伺服器 (file server) ，舉例來說， SAMBA Server 或者是 FTP server 時， 都是很重要的觀念！這牽涉到你的使用者是否能夠將檔案進一步利用的問題喔！不要等閒視之！
+
+> 例題：
+     假設你的 umask 為 003 ，請問該 umask 情況下，建立的檔案與目錄權限為？
+> 答：
+     umask 為 003 ，所以拿掉的權限為 --------wx，因此：
+     檔案： (-rw-rw-rw-) - (--------wx) = -rw-rw-r--
+     目錄： (drwxrwxrwx) - (d-------wx) = drwxrwxr--
+
+
+### 6.4.2 檔案隱藏屬性
+什麼？檔案還有隱藏屬性？光是那九個權限就快要瘋掉了，竟然還有隱藏屬性，真是要命～ 但是沒辦法，就是有檔案的隱藏屬性存在啊！不過，這些隱藏的屬性確實對於系統有很大的幫助的～ 尤其是在系統安全 (Security) 上面，重要的緊呢！不過要先強調的是，底下的chattr指令只能在Ext2/Ext3/Ext4的 Linux 傳統檔案系統上面完整生效， 其他的檔案系統可能就無法完整的支援這個指令了，例如 xfs 僅支援部份參數而已。底下我們就來談一談如何設定與檢查這些隱藏的屬性吧！
+
+#### chattr
+```
+[root@study ~]# chattr [+-=][ASacdistu] 檔案或目錄名稱
+選項與參數：
++   ：增加某一個特殊參數，其他原本存在參數則不動。
+-   ：移除某一個特殊參數，其他原本存在參數則不動。
+=   ：設定一定，且僅有後面接的參數
+
+A  ：當設定了 A 這個屬性時，若你有存取此檔案(或目錄)時，他的存取時間 atime 將不會被修改，
+     可避免 I/O 較慢的機器過度的存取磁碟。(目前建議使用檔案系統掛載參數處理這個項目)
+S  ：一般檔案是非同步寫入磁碟的(原理請參考前一章sync的說明)，如果加上 S 這個屬性時，
+     當你進行任何檔案的修改，該更動會『同步』寫入磁碟中。
+a  ：當設定 a 之後，這個檔案將只能增加資料，而不能刪除也不能修改資料，只有root 才能設定這屬性
+c  ：這個屬性設定之後，將會自動的將此檔案『壓縮』，在讀取的時候將會自動解壓縮，
+     但是在儲存的時候，將會先進行壓縮後再儲存(看來對於大檔案似乎蠻有用的！)
+d  ：當 dump 程序被執行的時候，設定 d 屬性將可使該檔案(或目錄)不會被 dump 備份
+i  ：這個 i 可就很厲害了！他可以讓一個檔案『不能被刪除、改名、設定連結也無法寫入或新增資料！』
+     對於系統安全性有相當大的助益！只有 root 能設定此屬性
+s  ：當檔案設定了 s 屬性時，如果這個檔案被刪除，他將會被完全的移除出這個硬碟空間，
+     所以如果誤刪了，完全無法救回來了喔！
+u  ：與 s 相反的，當使用 u 來設定檔案時，如果該檔案被刪除了，則資料內容其實還存在磁碟中，
+     可以使用來救援該檔案喔！
+注意1：屬性設定常見的是 a 與 i 的設定值，而且很多設定值必須要身為 root 才能設定
+注意2：xfs 檔案系統僅支援 AadiS 而已
+
+範例：請嘗試到/tmp底下建立檔案，並加入 i 的參數，嘗試刪除看看。
+[root@study ~]# cd /tmp
+[root@study tmp]# touch attrtest     <==建立一個空檔案
+[root@study tmp]# chattr +i attrtest <==給予 i 的屬性
+[root@study tmp]# rm attrtest        <==嘗試刪除看看
+rm: remove regular empty file `attrtest'? y
+rm: cannot remove `attrtest': Operation not permitted
+# 看到了嗎？呼呼！連 root 也沒有辦法將這個檔案刪除呢！趕緊解除設定！
+
+範例：請將該檔案的 i 屬性取消！
+[root@study tmp]# chattr -i attrtest
+```
+Myself test
+```
+root@ubuntu:/home/kevin/os# ls
+os_experiment  os_note  路线图.jpg
+root@ubuntu:/home/kevin/os# touch attest
+root@ubuntu:/home/kevin/os# chattr +i attest 
+root@ubuntu:/home/kevin/os# rm attest 
+rm: cannot remove 'attest': Operation not permitted
+root@ubuntu:/home/kevin/os# chattr -i attest 
+root@ubuntu:/home/kevin/os# rm attest 
+root@ubuntu:/home/kevin/os# ls
+os_experiment  os_note  路线图.jpg
+```
+#### lsattr
+```
+[root@study ~]# lsattr [-adR] 檔案或目錄
+選項與參數：
+-a ：將隱藏檔的屬性也秀出來；
+-d ：如果接的是目錄，僅列出目錄本身的屬性而非目錄內的檔名；
+-R ：連同子目錄的資料也一併列出來！ 
+
+[root@study tmp]# chattr +aiS attrtest
+[root@study tmp]# lsattr attrtest
+--S-ia---------- attrtest
+```
+使用 chattr 設定後，可以利用 lsattr 來查閱隱藏的屬性。不過， 這兩個指令在使用上必須要特別小心，否則會造成很大的困擾。例如：某天你心情好，突然將 /etc/shadow 這個重要的密碼記錄檔案給他設定成為具有 i 的屬性，那麼過了若干天之後， 你突然要新增使用者，卻一直無法新增！別懷疑，趕快去將 i 的屬性拿掉吧！
+
+### 6.4.3 檔案特殊權限： SUID, SGID, SBIT
+一定注意到了一件事，那就是，怎麼我們的 /tmp 權限怪怪的？ 還有，那個 /usr/bin/passwd 也怪怪的？怎麼回事啊？看看先：
+
+
+```
+root@ubuntu:/home/kevin/os# ls -ld /tmp
+drwxrwxrwt 22 root root 4096 Oct 24 16:49 /tmp
+kevin@ubuntu:~/os$ sudo ls -ld /usr/bin/passwd
+[sudo] password for kevin: 
+-rwsr-xr-x 1 root root 59640 Mar 14  2022 /usr/bin/passwd
+```
+
+不是應該只有 rwx 嗎？還有其他的特殊權限( s 跟 t )啊？啊.....頭又開始昏了～ @_@ 因為 s 與 t 這兩個權限的意義與系統的帳號 (第十三章)及系統的程序(process, 第十六章)較為相關， 所以等到後面的章節談完後你才會比較有概念！底下的說明先看看就好，如果看不懂也沒有關係， 先知道s放在哪裡稱為SUID/SGID以及如何設定即可，等系統程序章節讀完後，再回來看看喔！
+
+#### Set UID
+當 s 這個標誌出現在檔案擁有者的 x 權限上時，例如剛剛提到的 /usr/bin/passwd 這個檔案的權限狀態：『-rwsr-xr-x』，此時就被稱為 Set UID，簡稱為 SUID 的特殊權限。 那麼SUID的權限對於一個檔案的特殊功能是什麼呢？基本上SUID有這樣的限制與功能：
+- SUID 權限僅對二進位程式(binary program)有效；
+- 執行者對於該程式需要具有 x 的可執行權限；
+- 本權限僅在執行該程式的過程中有效 (run-time)；
+- 執行者將具有該程式擁有者 (owner) 的權限。
+
+唔！有沒有衝突啊！明明 /etc/shadow 就不能讓 dmtsai 這個一般帳戶去存取的，為什麼 dmtsai 還能夠修改這個檔案內的密碼呢？ 這就是 SUID 的功能啦！藉由上述的功能說明，我們可以知道
+
+1. dmtsai 對於 /usr/bin/passwd 這個程式來說是具有 x 權限的，表示 dmtsai 能執行 passwd；
+2. passwd 的擁有者是 root 這個帳號；
+3. dmtsai 執行 passwd 的過程中，會『暫時』獲得 root 的權限；
+4. /etc/shadow 就可以被 dmtsai 所執行的 passwd 所修改。
+但如果 dmtsai 使用 cat 去讀取 /etc/shadow 時，他能夠讀取嗎？因為 cat 不具有 SUID 的權限，所以 dmtsai 執行 『cat /etc/shadow』 時，是不能讀取 /etc/shadow 的。我們用一張示意圖來說明如下：
+
+另外，**SUID 僅可用在binary program 上， 不能夠用在 shell script 上面**這是因為 shell script 只是將很多的 binary 執行檔叫進來執行而已！所以 SUID 的權限部分，還是得要看 shell script 呼叫進來的程式的設定， 而不是 shell script 本身。當然，SUID 對於目錄也是無效的～這點要特別留意。
+
+#### Set GID
+**當 s 標誌在檔案擁有者的 x 項目為 SUID，那 s 在群組的 x 時則稱為 Set GID, SGID 囉！** 是這樣沒錯！^_^。 舉例來說，你可以用底下的指令來觀察到具有 SGID 權限的檔案喔：
+```
+kevin@ubuntu:~/os$ ls -l /usr/bin/locate
+lrwxrwxrwx 1 root root 24 Mar 23  2022 /usr/bin/locate -> /etc/alternatives/locate
+```
+與 SUID 不同的是，SGID 可以針對檔案或目錄來設定！如果是對檔案來說， SGID 有如下的功能：
+
+- SGID 對二進位程式有用；
+- 程式執行者對於該程式來說，需具備 x 的權限；
+- 執行者在執行的過程中將會獲得該程式群組的支援！
+
+#### Sticky Bit
+這個 Sticky Bit, SBIT 目前只針對目錄有效，對於檔案已經沒有效果了。SBIT 對於目錄的作用是：
+- 當使用者對於此目錄具有 w, x 權限，亦即具有寫入的權限時；
+- 當使用者在該目錄下建立檔案或目錄時，僅有自己與 root 才有權力刪除該檔案
+
+#### SUID/SGID/SBIT 權限設定
+前面介紹過 SUID 與 SGID 的功能，那麼如何設定檔案使成為具有 SUID 與 SGID 的權限呢？ 這就需要第五章的數字更改權限的方法了！ 現在你應該已經知道數字型態更改權限的方式為『三個數字』的組合， 那麼如果在這三個數字之前再加上一個數字的話，最前面的那個數字就代表這幾個權限了！
+
+- 4 為 SUID
+- 2 為 SGID
+- 1 為 SBIT
+假設要將一個檔案權限改為『-rwsr-xr-x』時，由於 s 在使用者權限中，所以是 SUID ，因此， 在原先的 755 之前還要加上 4 ，也就是：『 chmod 4755 filename 』來設定！此外，還有大 S 與大 T 的產生喔！參考底下的範例啦！
+
+
+
+換句話說：當甲這個使用者於 A 目錄是具有群組或其他人的身份，並且擁有該目錄 w 的權限， 這表示『甲使用者對該目錄內任何人建立的目錄或檔案均可進行 "刪除/更名/搬移" 等動作。』 不過，如果將 A 目錄加上了 SBIT 的權限項目時， 則甲只能夠針對自己建立的檔案或目錄進行刪除/更名/移動等動作，而無法刪除他人的檔案。
+
+### 6.4.4 觀察檔案類型：file
+如果你想要知道某個檔案的基本資料，例如是屬於 ASCII 或者是 data 檔案，或者是 binary ， 且其中有沒有使用到動態函式庫 (share library) 等等的資訊，就可以利用 file 這個指令來檢閱喔！舉例來說：
+```
+[root@study ~]# file ~/.bashrc
+/root/.bashrc: ASCII text  <==告訴我們是 ASCII 的純文字檔啊！
+[root@study ~]# file /usr/bin/passwd
+/usr/bin/passwd: setuid ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically 
+linked (uses shared libs), for GNU/Linux 2.6.32, 
+BuildID[sha1]=0xbf35571e607e317bf107b9bcf65199988d0ed5ab, stripped
+# 執行檔的資料可就多的不得了！包括這個檔案的 suid 權限、相容於 Intel x86-64 等級的硬體平台
+# 使用的是 Linux 核心 2.6.32 的動態函式庫連結等等。
+[root@study ~]# file /var/lib/mlocate/mlocate.db
+/var/lib/mlocate/mlocate.db: data  <== 這是 data 檔案！
+```
+透過這個指令，我們可以簡單的先判斷這個檔案的格式為何喔！包括未來你也可以用來判斷使用 tar 包裹時，該 tarball 檔案是使用哪一種壓縮功能哩！
+
+## 6.5 指令與檔案的搜尋
+### 6.5.1 指令檔名的搜尋
+我們知道在終端機模式當中，連續輸入兩次[tab]按鍵就能夠知道使用者有多少指令可以下達。 那你知不知道這些指令的完整檔名放在哪裡？舉例來說，ls 這個常用的指令放在哪裡呢？ 就透過 which 或 type 來找尋吧！
+
+which (尋找『執行檔』)
+```
+[root@study ~]# which [-a] command
+選項或參數：
+-a ：將所有由 PATH 目錄中可以找到的指令均列出，而不止第一個被找到的指令名稱
+
+範例一：搜尋 ifconfig 這個指令的完整檔名
+[root@study ~]# which ifconfig
+/sbin/ifconfig 
+
+範例二：用 which 去找出 which 的檔名為何？
+[root@study ~]# which which
+alias which='alias | /usr/bin/which --tty-only --read-alias --show-dot --show-tilde'
+        /bin/alias
+        /usr/bin/which
+# 竟然會有兩個 which ，其中一個是 alias 這玩意兒呢！那是啥？
+# 那就是所謂的『命令別名』，意思是輸入 which 會等於後面接的那串指令啦！
+# 更多的資料我們會在 bash 章節中再來談的！
+
+範例三：請找出 history 這個指令的完整檔名
+[root@study ~]# which history
+/usr/bin/which: no history in (/usr/local/sbin:/usr/local/bin:/sbin:/bin:
+/usr/sbin:/usr/bin:/root/bin)
+
+[root@study ~]# history --help
+-bash: history: --: invalid option
+history: usage: history [-c] [-d offset] [n] or history -anrw [filename] or history -ps arg 
+# 瞎密？怎麼可能沒有 history ，我明明就能夠用 root 執行 history 的啊！
+```
+
+是找出『執行檔』而已！且 which 後面接的是『完整檔名』喔！若加上 -a 選項，則可以列出所有的可以找到的同名執行檔，而非僅顯示第一個而已！
+
+最後一個範例最有趣，怎麼 history 這個常用的指令竟然找不到啊！為什麼呢？這是因為 **history 是『bash 內建的指令』啦！**  但是 which 預設是找 PATH 內所規範的目錄，所以當然一定找不到的啊(有 bash 就有 history！)！那怎辦？沒關係！我們可以透過 type 這個指令喔！ 關於 type 的用法我們將在 第十章的 bash 再來談！
+
+### 6.5.2 檔案檔名的搜尋
