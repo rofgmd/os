@@ -1431,3 +1431,58 @@ history: usage: history [-c] [-d offset] [n] or history -anrw [filename] or hist
 最後一個範例最有趣，怎麼 history 這個常用的指令竟然找不到啊！為什麼呢？這是因為 **history 是『bash 內建的指令』啦！**  但是 which 預設是找 PATH 內所規範的目錄，所以當然一定找不到的啊(有 bash 就有 history！)！那怎辦？沒關係！我們可以透過 type 這個指令喔！ 關於 type 的用法我們將在 第十章的 bash 再來談！
 
 ### 6.5.2 檔案檔名的搜尋
+再來談一談怎麼搜尋檔案吧！在 Linux 底下也有相當優異的搜尋指令呦！通常 find 不很常用的！因為速度慢之外， 也很操硬碟！一般我們都是先使用 whereis 或者是 locate 來檢查，如果真的找不到了，才以 find 來搜尋呦！ 為什麼呢？**因為 whereis 只找系統中某些特定目錄底下的檔案而已，locate 則是利用資料庫來搜尋檔名，**當然兩者就相當的快速， 並且沒有實際的搜尋硬碟內的檔案系統狀態，比較省時間啦！
+
+#### whereis (由一些特定的目錄中尋找檔案檔名)
+```
+
+[root@study ~]# whereis [-bmsu] 檔案或目錄名
+選項與參數：
+-l    :可以列出 whereis 會去查詢的幾個主要目錄而已
+-b    :只找 binary 格式的檔案
+-m    :只找在說明檔 manual 路徑下的檔案
+-s    :只找 source 來源檔案
+-u    :搜尋不在上述三個項目當中的其他特殊檔案
+
+範例一：請找出 ifconfig 這個檔名
+[root@study ~]# whereis ifconfig 
+ifconfig: /sbin/ifconfig /usr/share/man/man8/ifconfig.8.gz
+
+範例二：只找出跟 passwd 有關的『說明文件』檔名(man page)
+[root@study ~]# whereis passwd     # 全部的檔名通通列出來！
+passwd: /usr/bin/passwd /etc/passwd /usr/share/man/man1/passwd.1.gz /usr/share/man/man5/passwd.5.gz
+[root@study ~]# whereis -m passwd  # 只有在 man 裡面的檔名才抓出來！
+passwd: /usr/share/man/man1/passwd.1.gz /usr/share/man/man5/passwd.5.gz
+```
+
+等一下我們會提到 find 這個搜尋指令， find 是很強大的搜尋指令，但時間花用的很大！(**因為 find 是直接搜尋硬碟**，為如果你的硬碟比較老舊的話，嘿嘿！有的等！) 這個時候 whereis 就相當的好用了！另外， whereis 可以加入選項來找尋相關的資料，例如，如果你是要找可執行檔 (binary) 那麼加上 -b 就可以啦！ 如果不加任何選項的話，那麼就將所有的資料列出來囉！
+
+那麼 whereis 到底是使用什麼咚咚呢？為何搜尋的速度會比 find 快這麼多？ 其實那也沒有什麼，**只是因為 whereis 只找幾個特定的目錄而已～並沒有全系統去查詢之故**。所以說，**whereis 主要是針對 /bin /sbin 底下的執行檔， 以及 /usr/share/man 底下的 man page 檔案，跟幾個比較特定的目錄來處理而已。所以速度當然快的多！**不過，就有某些檔案是你找不到的啦！ 想要知道 whereis 到底查了多少目錄？可以使用 whereis -l 來確認一下即可！
+
+#### locate / updatedb
+```
+[root@study ~]# locate [-ir] keyword
+選項與參數：
+-i  ：忽略大小寫的差異；
+-c  ：不輸出檔名，僅計算找到的檔案數量
+-l  ：僅輸出幾行的意思，例如輸出五行則是 -l 5
+-S  ：輸出 locate 所使用的資料庫檔案的相關資訊，包括該資料庫紀錄的檔案/目錄數量等
+-r  ：後面可接正規表示法的顯示方式
+
+範例一：找出系統中所有與 passwd 相關的檔名，且只列出 5 個
+[root@study ~]# locate -l 5 passwd
+/etc/passwd
+/etc/passwd-
+/etc/pam.d/passwd
+/etc/security/opasswd
+/usr/bin/gpasswd
+
+範例二：列出 locate 查詢所使用的資料庫檔案之檔名與各資料數量
+[root@study ~]# locate -S
+Database /var/lib/mlocate/mlocate.db:
+        8,086 directories     # 總紀錄目錄數
+        109,605 files         # 總紀錄檔案數
+        5,190,295 bytes in file names
+        2,349,150 bytes used to store database
+```
+
