@@ -1486,3 +1486,119 @@ Database /var/lib/mlocate/mlocate.db:
         2,349,150 bytes used to store database
 ```
 
+但是，這個東西還是有使用上的限制呦！為什麼呢？**你會發現使用 locate 來尋找資料的時候特別的快， 這是因為 locate 尋找的資料是由『已建立的資料庫 /var/lib/mlocate/』 裡面的資料所搜尋到的，所以不用直接在去硬碟當中存取資料**，呵呵！當然是很快速囉！
+
+那麼有什麼限制呢？就是因為他是經由資料庫來搜尋的，而資料庫的建立預設是在每天執行一次 (每個 distribution 都不同，CentOS 7.x 是每天更新資料庫一次！)，所以當你新建立起來的檔案， 卻還在資料庫更新之前搜尋該檔案，那麼 locate 會告訴你『找不到！』呵呵！因為必須要更新資料庫呀！
+
+那能否手動更新資料庫哪？當然可以啊！更新 locate 資料庫的方法非常簡單，**直接輸入『 updatedb 』就可以了！ updatedb 指令會去讀取 /etc/updatedb.conf 這個設定檔的設定，然後再去硬碟裡面進行搜尋檔名的動作， 最後就更新整個資料庫檔案囉！因為 updatedb 會去搜尋硬碟，所以當你執行 updatedb 時，可能會等待數分鐘的時間喔！**
+
+#### find
+```
+[root@study ~]# find [PATH] [option] [action]
+選項與參數：
+1. 與時間有關的選項：共有 -atime, -ctime 與 -mtime ，以 -mtime 說明
+   -mtime  n ：n 為數字，意義為在 n 天之前的『一天之內』被更動過內容的檔案；
+   -mtime +n ：列出在 n 天之前(不含 n 天本身)被更動過內容的檔案檔名；
+   -mtime -n ：列出在 n 天之內(含 n 天本身)被更動過內容的檔案檔名。
+   -newer file ：file 為一個存在的檔案，列出比 file 還要新的檔案檔名
+
+範例一：將過去系統上面 24 小時內有更動過內容 (mtime) 的檔案列出
+[root@study ~]# find / -mtime 0
+# 那個 0 是重點！0 代表目前的時間，所以，從現在開始到 24 小時前，
+# 有變動過內容的檔案都會被列出來！那如果是三天前的 24 小時內？
+# find / -mtime 3 有變動過的檔案都被列出的意思！
+
+範例二：尋找 /etc 底下的檔案，如果檔案日期比 /etc/passwd 新就列出
+[root@study ~]# find /etc -newer /etc/passwd
+# -newer 用在分辨兩個檔案之間的新舊關係是很有用的！
+```
+
+時間參數真是挺有意思的！我們現在知道 atime, ctime 與 mtime 的意義，如果你想要找出一天內被更動過的檔案名稱， 可以使用上述範例一的作法。但如果我想要找出『4天內被更動過的檔案檔名』呢？那可以使用『 find /var -mtime -4 』。那如果是『4天前的那一天』就用『 find /var -mtime 4 』。有沒有加上『+, -』差別很大喔！我們可以用簡單的圖示來說明一下：
+
+<div align=center><img src="/os_note/linux_file/picture/find_time.gif"></div>
+<div align=center>圖6.5.1、find 相關的時間參數意義</div>
+
+圖中最右邊為目前的時間，越往左邊則代表越早之前的時間軸啦。由圖 6.5.1 我們可以清楚的知道：
+
+- +4代表大於等於5天前的檔名：ex> find /var -mtime +4
+- -4代表小於等於4天內的檔案檔名：ex> find /var -mtime -4
+- 4則是代表4-5那一天的檔案檔名：ex> find /var -mtime 4
+
+```
+選項與參數：
+2. 與使用者或群組名稱有關的參數：
+   -uid n ：n 為數字，這個數字是使用者的帳號 ID，亦即 UID ，這個 UID 是記錄在
+            /etc/passwd 裡面與帳號名稱對應的數字。這方面我們會在第四篇介紹。
+   -gid n ：n 為數字，這個數字是群組名稱的 ID，亦即 GID，這個 GID 記錄在
+            /etc/group，相關的介紹我們會第四篇說明～
+   -user name ：name 為使用者帳號名稱喔！例如 dmtsai 
+   -group name：name 為群組名稱喔，例如 users ；
+   -nouser    ：尋找檔案的擁有者不存在 /etc/passwd 的人！
+   -nogroup   ：尋找檔案的擁有群組不存在於 /etc/group 的檔案！
+                當你自行安裝軟體時，很可能該軟體的屬性當中並沒有檔案擁有者，
+                這是可能的！在這個時候，就可以使用 -nouser 與 -nogroup 搜尋。
+
+範例三：搜尋 /home 底下屬於 dmtsai 的檔案
+[root@study ~]# find /home -user dmtsai
+# 這個東西也很有用的～當我們要找出任何一個使用者在系統當中的所有檔案時，
+# 就可以利用這個指令將屬於某個使用者的所有檔案都找出來喔！
+
+範例四：搜尋系統中不屬於任何人的檔案
+[root@study ~]# find / -nouser
+# 透過這個指令，可以輕易的就找出那些不太正常的檔案。如果有找到不屬於系統任何人的檔案時，
+# 不要太緊張，那有時候是正常的～尤其是你曾經以原始碼自行編譯軟體時。
+```
+
+```
+選項與參數：
+3. 與檔案權限及名稱有關的參數：
+   -name filename：搜尋檔案名稱為 filename 的檔案；
+   -size [+-]SIZE：搜尋比 SIZE 還要大(+)或小(-)的檔案。這個 SIZE 的規格有：
+                   c: 代表 byte， k: 代表 1024bytes。所以，要找比 50KB
+                   還要大的檔案，就是『 -size +50k 』
+   -type TYPE    ：搜尋檔案的類型為 TYPE 的，類型主要有：一般正規檔案 (f), 裝置檔案 (b, c),
+                   目錄 (d), 連結檔 (l), socket (s), 及 FIFO (p) 等屬性。
+   -perm mode  ：搜尋檔案權限『剛好等於』 mode 的檔案，這個 mode 為類似 chmod
+                 的屬性值，舉例來說， -rwsr-xr-x 的屬性為 4755 ！
+   -perm -mode ：搜尋檔案權限『必須要全部囊括 mode 的權限』的檔案，舉例來說，
+                 我們要搜尋 -rwxr--r-- ，亦即 0744 的檔案，使用 -perm -0744，
+                 當一個檔案的權限為 -rwsr-xr-x ，亦即 4755 時，也會被列出來，
+                 因為 -rwsr-xr-x 的屬性已經囊括了 -rwxr--r-- 的屬性了。
+   -perm /mode ：搜尋檔案權限『包含任一 mode 的權限』的檔案，舉例來說，我們搜尋
+                 -rwxr-xr-x ，亦即 -perm /755 時，但一個檔案屬性為 -rw-------
+                 也會被列出來，因為他有 -rw.... 的屬性存在！
+
+範例五：找出檔名為 passwd 這個檔案
+[root@study ~]# find / -name passwd
+
+範例五-1：找出檔名包含了 passwd 這個關鍵字的檔案
+[root@study ~]# find / -name "*passwd*"
+# 利用這個 -name 可以搜尋檔名啊！預設是完整檔名，如果想要找關鍵字，
+# 可以使用類似 * 的任意字元來處理
+
+範例六：找出 /run 目錄下，檔案類型為 Socket 的檔名有哪些？
+[root@study ~]# find /run -type s
+# 這個 -type 的屬性也很有幫助喔！尤其是要找出那些怪異的檔案，
+# 例如 socket 與 FIFO 檔案，可以用 find /run -type p 或 -type s 來找！
+
+範例七：搜尋檔案當中含有 SGID 或 SUID 或 SBIT 的屬性
+[root@study ~]# find / -perm /7000 
+# 所謂的 7000 就是 ---s--s--t ，那麼只要含有 s 或 t 的就列出，所以當然要使用 /7000，
+# 使用 -7000 表示要同時含有 ---s--s--t 的所有三個權限。而只需要任意一個，就是 /7000 ～瞭乎？
+```
+
+因為 SUID 是 4 分，SGID 2 分，總共為 6 分，因此可用 /6000 來處理這個權限！ 至於 find 後面可以接多個目錄來進行搜尋！另外， find 本來就會搜尋次目錄，這個特色也要特別注意喔！ 最後，我們再來看一下 find 還有什麼特殊功能吧！
+```
+選項與參數：
+4. 額外可進行的動作：
+   -exec command ：command 為其他指令，-exec 後面可再接額外的指令來處理搜尋到的結果。
+   -print        ：將結果列印到螢幕上，這個動作是預設動作！
+
+範例八：將上個範例找到的檔案使用 ls -l 列出來～
+[root@study ~]# find /usr/bin /usr/sbin -perm /7000 -exec ls -l {} \;
+# 注意到，那個 -exec 後面的 ls -l 就是額外的指令，指令不支援命令別名，
+# 所以僅能使用 ls -l 不可以使用 ll 喔！注意注意！
+
+範例九：找出系統中，大於 1MB 的檔案
+[root@study ~]# find / -size +1M
+```
