@@ -1741,3 +1741,157 @@ data block 是用來放置檔案內容資料地方，在 Ext2 檔案系統中所
 
 >答：
 由於 Ext2 檔案系統中一個 block 僅能容納一個檔案，因此每個 block 會浪費『 4096 - 50 = 4046 (byte)』， 系統中總共有一萬個小檔案，所有檔案容量為：50 (bytes) x 10000 = 488.3Kbytes，但此時浪費的容量為：『 4046 (bytes) x 10000 = 38.6MBytes 』。想一想，不到 1MB 的總檔案容量卻浪費將近 40MB 的容量，且檔案越多將造成越多的磁碟容量浪費。
+
+什麼情況會產生上述的狀況呢？例如 BBS 網站的資料啦！如果 BBS 上面的資料使用的是純文字檔案來記載每篇留言， 而留言內容如果都寫上『如題』時，想一想，是否就會產生很多小檔案了呢？
+
+好，既然大的 block 可能會產生較嚴重的磁碟容量浪費，那麼我們是否就將 block 大小訂為 1K 即可？ 這也不妥，**因為如果 block 較小的話，那麼大型檔案將會佔用數量更多的 block ，而 inode 也要記錄更多的 block 號碼，此時將可能導致檔案系統不良的讀寫效能。**
+
+所以我們可以說，在您進行檔案系統的格式化之前，請先想好該檔案系統預計使用的情況。 以鳥哥來說，我的數值模式模擬平台隨便一個檔案都好幾百 MB，那麼 block 容量當然選擇較大的！至少檔案系統就不必記錄太多的 block 號碼，讀寫起來也比較方便啊！
+
+#### inode table (inode 表格)
+再來討論一下 inode 這個玩意兒吧！如前所述 **inode 的內容在記錄檔案的屬性以及該檔案實際資料是放置在哪幾號 block 內！** 基本上，inode 記錄的檔案資料至少有底下這些：(註4)
+
+- 該檔案的存取模式(read/write/excute)；
+- 該檔案的擁有者與群組(owner/group)；
+- 該檔案的容量；
+- 該檔案建立或狀態改變的時間(ctime)；
+- 最近一次的讀取時間(atime)；
+- 最近修改的時間(mtime)；
+- 定義檔案特性的旗標(flag)，如 SetUID...；
+- 該檔案真正內容的指向 (pointer)；
+
+inode 的數量與大小也是在格式化時就已經固定了，除此之外 inode 還有些什麼特色呢？
+
+- **每個 inode 大小均固定為 128 bytes (新的 ext4 與 xfs 可設定到 256 bytes)**；
+- **每個檔案都僅會佔用一個 inode 而已**；
+- 承上，因此檔案系統能夠建立的檔案數量與 inode 的數量有關；
+- 系統讀取檔案時需要先找到 inode，並分析 inode 所記錄的權限與使用者是否符合，若符合才能夠開始實際讀取 block 的內容。
+
+我們約略來分析一下 EXT2 的 inode / block 與檔案大小的關係好了。inode 要記錄的資料非常多，但偏偏又只有 128bytes 而已， 而 inode 記錄一個 block 號碼要花掉 4byte ，假設我一個檔案有 400MB 且每個 block 為 4K 時， 那麼至少也要十萬筆 block 號碼的記錄呢！inode 哪有這麼多可記錄的資訊？為此我們的系統很聰明的將 inode 記錄 block 號碼的區域定義為12個直接，一個間接, 一個雙間接與一個三間接記錄區。這是啥？我們將 inode 的結構畫一下好了。
+<div align=center><img src="/os_note/linux_file/picture/inode.jpg"></div>
+<div align=center>
+圖7.1.4、inode 結構示意圖</div>
+上圖最左邊為 inode 本身 (128 bytes)，裡面有 12 個直接指向 block 號碼的對照，這 12 筆記錄就能夠直接取得 block 號碼啦！ 至於所謂的間接就是再拿一個 block 來當作記錄 block 號碼的記錄區，如果檔案太大時， 就會使用間接的 block 來記錄號碼。如上圖 7.1.4 當中間接只是拿一個 block 來記錄額外的號碼而已。 同理，如果檔案持續長大，那麼就會利用所謂的雙間接，第一個 block 僅再指出下一個記錄號碼的 block 在哪裡， 實際記錄的在第二個 block 當中。依此類推，三間接就是利用第三層 block 來記錄號碼啦！
+
+這樣子 inode 能夠指定多少個 block 呢？我們以較小的 1K block 來說明好了，可以指定的情況如下：
+- 12 個直接指向： 12*1K=12K
+由於是直接指向，所以總共可記錄 12 筆記錄，因此總額大小為如上所示；
+
+- 間接： 256*1K=256K
+每筆 block 號碼的記錄會花去 4bytes，因此 1K 的大小能夠記錄 256 筆記錄，因此一個間接可以記錄的檔案大小如上；
+
+- 雙間接： 256*256*1K=2562K
+第一層 block 會指定 256 個第二層，每個第二層可以指定 256 個號碼，因此總額大小如上；
+
+- 三間接： 256*256*256*1K=2563K
+第一層 block 會指定 256 個第二層，每個第二層可以指定 256 個第三層，每個第三層可以指定 256 個號碼，因此總額大小如上；
+
+- 總額：將直接、間接、雙間接、三間接加總，得到 12 + 256 + 256*256 + 256*256*256 (K) = 16GB
+
+此時我們知道當檔案系統將 block 格式化為 1K 大小時，能夠容納的最大檔案為 16GB，比較一下檔案系統限制表的結果可發現是一致的！但這個方法不能用在 2K 及 4K block 大小的計算中， 因為大於 2K 的 block 將會受到 Ext2 檔案系統本身的限制，所以計算的結果會不太符合之故。
+
+>如果你的 Linux 依舊使用 Ext2/Ext3/Ext4 檔案系統的話，例如鳥哥之前的 CentOS 6.x 系統，那麼預設還是使用 Ext4 的檔案系統喔！ Ext4 檔案系統的 inode 容量已經可以擴大到 256bytes 了，更大的 inode 容量，可以紀錄更多的檔案系統資訊，包括新的 ACL 以及 SELinux 類型等， 當然，可以紀錄的單一檔案容量達 16TB 且單一檔案系統總容量可達 1EB 哩！
+
+#### Superblock (超級區塊)
+Superblock 是記錄整個 filesystem 相關資訊的地方， 沒有 Superblock ，就沒有這個 filesystem 了。他記錄的資訊主要有：
+- block 與 inode 的總量；
+- 未使用與已使用的 inode / block 數量；
+- block 與 inode 的大小 (block 為 1, 2, 4K，inode 為 128bytes 或 256bytes)；
+- filesystem 的掛載時間、最近一次寫入資料的時間、最近一次檢驗磁碟 (fsck) 的時間等檔案系統的相關資訊；
+- 一個 valid bit 數值，若此檔案系統已被掛載，則 valid bit 為 0 ，若未被掛載，則 valid bit 為 1 。
+
+Superblock 是非常重要的，因為我們這個檔案系統的基本資訊都寫在這裡，因此，如果 superblock 死掉了， 你的檔案系統可能就需要花費很多時間去挽救啦！一般來說， superblock 的大小為 1024bytes。相關的 superblock 訊息我們等一下會以 dumpe2fs 指令來呼叫出來觀察喔！
+
+此外，每個 block group 都可能含有 superblock 喔！但是我們也說一個檔案系統應該僅有一個 superblock 而已，那是怎麼回事啊？ 事實上除了第一個 block group 內會含有 superblock 之外，後續的 block group 不一定含有 superblock ， 而若含有 superblock 則該 superblock 主要是做為第一個 block group 內 superblock 的備份咯，這樣可以進行 superblock 的救援呢！
+
+#### Filesystem Description (檔案系統描述說明)
+這個區段可以描述每個 block group 的開始與結束的 block 號碼，以及說明每個區段 (superblock, bitmap, inodemap, data block) 分別介於哪一個 block 號碼之間。這部份也能夠用 dumpe2fs 來觀察的。
+
+#### block bitmap (區塊對照表)
+如果你想要新增檔案時總會用到 block 吧！那你要使用哪個 block 來記錄呢？當然是選擇『空的 block 』來記錄新檔案的資料囉。 那你怎麼知道哪個 block 是空的？這就得要透過 block bitmap 的輔助了。從 block bitmap 當中可以知道哪些 block 是空的，因此我們的系統就能夠很快速的找到可使用的空間來處置檔案囉。
+
+同樣的，如果你刪除某些檔案時，那麼那些檔案原本佔用的 block 號碼就得要釋放出來， 此時在 block bitmap 當中相對應到該 block 號碼的標誌就得要修改成為『未使用中』囉！這就是 bitmap 的功能。
+
+#### inode bitmap (inode 對照表)
+這個其實與 block bitmap 是類似的功能，只是 block bitmap 記錄的是使用與未使用的 block 號碼， 至於 inode bitmap 則是記錄使用與未使用的 inode 號碼囉！
+
+---
+#### dumpe2fs： 查詢 Ext 家族 superblock 資訊的指令
+瞭解了檔案系統的概念之後，再來當然是觀察這個檔案系統囉！剛剛談到的各部分資料都與 block 號碼有關！ 每個區段與 superblock 的資訊都可以使用 dumpe2fs 這個指令來查詢的！不過很可惜的是，我們的 CentOS 7 現在是以 xfs 為預設檔案系統， 所以目前你的系統應該無法使用 dumpe2fs 去查詢任何檔案系統的。沒關係，鳥哥先找自己的一部機器來跟大家介紹， 你可以在後續的格式化內容講完之後，自己切出一個 ext4 的檔案系統去查詢看看即可。鳥哥這塊檔案系統是 1GB 的容量，使用預設方式來進行格式化的， 觀察的內容如下：
+
+```
+[root@study ~]# dumpe2fs [-bh] 裝置檔名
+選項與參數：
+-b ：列出保留為壞軌的部分(一般用不到吧！？)
+-h ：僅列出 superblock 的資料，不會列出其他的區段內容！
+
+範例：鳥哥的一塊 1GB ext4 檔案系統內容
+[root@study ~]# blkid   <==這個指令可以叫出目前系統有被格式化的裝置
+/dev/vda1: LABEL="myboot" UUID="ce4dbf1b-2b3d-4973-8234-73768e8fd659" TYPE="xfs"
+/dev/vda2: LABEL="myroot" UUID="21ad8b9a-aaad-443c-b732-4e2522e95e23" TYPE="xfs"
+/dev/vda3: UUID="12y99K-bv2A-y7RY-jhEW-rIWf-PcH5-SaiApN" TYPE="LVM2_member"
+/dev/vda5: UUID="e20d65d9-20d4-472f-9f91-cdcfb30219d6" TYPE="ext4"  <==看到 ext4 了！
+
+[root@study ~]# dumpe2fs /dev/vda5
+dumpe2fs 1.42.9 (28-Dec-2013)
+Filesystem volume name:   <none>           # 檔案系統的名稱(不一定會有)
+Last mounted on:          <not available>  # 上一次掛載的目錄位置
+Filesystem UUID:          e20d65d9-20d4-472f-9f91-cdcfb30219d6
+Filesystem magic number:  0xEF53           # 上方的 UUID 為 Linux 對裝置的定義碼
+Filesystem revision #:    1 (dynamic)      # 下方的 features 為檔案系統的特徵資料
+Filesystem features:      has_journal ext_attr resize_inode dir_index filetype extent 64bit 
+ flex_bg sparse_super large_file huge_file uninit_bg dir_nlink extra_isize
+Filesystem flags:         signed_directory_hash
+Default mount options:    user_xattr acl   # 預設在掛載時會主動加上的掛載參數
+Filesystem state:         clean            # 這塊檔案系統的狀態為何，clean 是沒問題
+Errors behavior:          Continue
+Filesystem OS type:       Linux
+Inode count:              65536            # inode 的總數
+Block count:              262144           # block 的總數
+Reserved block count:     13107            # 保留的 block 總數
+Free blocks:              249189           # 還有多少的 block 可用數量
+Free inodes:              65525            # 還有多少的 inode 可用數量
+First block:              0
+Block size:               4096             # 單個 block 的容量大小
+Fragment size:            4096
+Group descriptor size:    64
+....(中間省略)....
+Inode size:               256              # inode 的容量大小！已經是 256 了喔！
+....(中間省略)....
+Journal inode:            8
+Default directory hash:   half_md4
+Directory Hash Seed:      3c2568b4-1a7e-44cf-95a2-c8867fb19fbc
+Journal backup:           inode blocks
+Journal features:         (none)
+Journal size:             32M              # Journal 日誌式資料的可供紀錄總容量
+Journal length:           8192
+Journal sequence:         0x00000001
+Journal start:            0
+
+Group 0: (Blocks 0-32767)                  # 第一塊 block group 位置
+  Checksum 0x13be, unused inodes 8181
+  Primary superblock at 0, Group descriptors at 1-1   # 主要 superblock 的所在喔！
+  Reserved GDT blocks at 2-128
+  Block bitmap at 129 (+129), Inode bitmap at 145 (+145)
+  Inode table at 161-672 (+161)                       # inode table 的所在喔！
+  28521 free blocks, 8181 free inodes, 2 directories, 8181 unused inodes
+  Free blocks: 142-144, 153-160, 4258-32767           # 底下兩行說明剩餘的容量有多少
+  Free inodes: 12-8192
+Group 1: (Blocks 32768-65535) [INODE_UNINIT]          # 後續為更多其他的 block group 喔！
+....(底下省略)....
+# 由於資料量非常的龐大，因此鳥哥將一些資訊省略輸出了！上表與你的螢幕會有點差異。
+# 前半部在秀出 supberblock 的內容，包括標頭名稱(Label)以及inode/block的相關資訊
+# 後面則是每個 block group 的個別資訊了！您可以看到各區段資料所在的號碼！
+# 也就是說，基本上所有的資料還是與 block 的號碼有關就是了！很重要！
+```
+如上所示，利用 dumpe2fs 可以查詢到非常多的資訊，不過依內容主要可以區分為上半部是 superblock 內容， 下半部則是每個 block group 的資訊了。從上面的表格中我們可以觀察到鳥哥這個 /dev/vda5 規劃的 block 為 4K， 第一個 block 號碼為 0 號，且 block group 內的所有資訊都以 block 的號碼來表示的。 然後在 superblock 中還有談到目前這個檔案系統的可用 block 與 inode 數量喔！
+
+至於 block group 的內容我們單純看 Group0 資訊好了。從上表中我們可以發現：
+- Group0 所佔用的 block 號碼由 0 到 32767 號，**superblock 則在第 0 號的 block 區塊內！**
+- **檔案系統描述說明在第 1 號 block 中；**
+- block bitmap 與 inode bitmap 則在 129 及 145 的 block 號碼上。
+- 至於 inode table 分佈於 161-672 的 block 號碼中！
+- 由於 (1)一個 inode 佔用 256 bytes ，(2)總共有 672 - 161 + 1(161本身) = 512 個 - block 花在 inode table 上， (3)每個 block 的大小為 4096 bytes(4K)。由這些數據可以算出 inode 的數量共有 512 * 4096 / 256 = 8192 個 inode 啦！
+- 這個 Group0 目前可用的 block 有 28521 個，可用的 inode 有 8181 個；
+- 剩餘的 inode 號碼為 12 號到 8192 號。
+
