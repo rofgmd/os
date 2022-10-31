@@ -1895,3 +1895,368 @@ Group 1: (Blocks 32768-65535) [INODE_UNINIT]          # 後續為更多其他的
 - 這個 Group0 目前可用的 block 有 28521 個，可用的 inode 有 8181 個；
 - 剩餘的 inode 號碼為 12 號到 8192 號。
 
+### 7.1.4 與目錄樹的關係
+由前一小節的介紹我們知道在 Linux 系統下，每個檔案(不管是一般檔案還是目錄檔案)都會佔用一個 inode ， 且可依據檔案內容的大小來分配多個 block 給該檔案使用。而由第五章的權限說明中我們知道目錄的內容在記錄檔名， 一般檔案才是實際記錄資料內容的地方。那麼目錄與檔案在檔案系統當中是如何記錄資料的呢？基本上可以這樣說：
+
+#### 目錄
+當我們在 Linux 下的檔案系統建立一個目錄時，**檔案系統會分配一個 inode 與至少一塊 block 給該目錄。** 其中，inode 記錄該目錄的相關權限與屬性，並可記錄分配到的那塊 block 號碼； 而 block 則是記錄在這個目錄下的檔名與該檔名佔用的 inode 號碼資料。也就是說目錄所佔用的 block 內容在記錄如下的資訊：
+<div align =center><img src="/os_note/linux_file/picture/centos7_dir_block.jpg"></div>
+<div align =center>圖7.1.5、記載於目錄所屬的 block 內的檔名與 inode 號碼對應示意圖</div>
+如果想要實際觀察 root 家目錄內的檔案所佔用的 inode 號碼時，可以使用 ls -i 這個選項來處理：
+```
+kevin@ubuntu:~/os$ ls -li
+total 508
+1769589 drwxrwxr-x 5 kevin kevin   4096 Oct 18 15:42 os_experiment
+1769590 drwxrwxr-x 8 kevin kevin   4096 Oct 22 19:57 os_note
+1745543 -rwxrw-rw- 1 kevin kevin 508889 Oct  9 15:33 路线图.jpg
+```
+由於每個人所使用的電腦並不相同，系統安裝時選擇的項目與 partition 都不一樣，因此你的環境不可能與我的 inode 號碼一模一樣！上表的左邊所列出的 inode 僅是鳥哥的系統所顯示的結果而已！而由這個目錄的 block 結果我們現在就能夠知道， 當你使用『 ll / 』時，出現的目錄幾乎都是 1024 的倍數，為什麼呢？因為每個 block 的數量都是 1K, 2K, 4K 嘛！ 看一下鳥哥的環境：
+
+由於鳥哥的根目錄使用的 block 大小為 4K ，因此每個目錄幾乎都是 4K 的倍數。 其中由於 /usr/sbin 的內容比較複雜因此佔用了 4 個 block ！至於奇怪的 /proc 我們在第五章就講過該目錄不佔磁碟容量， 所以當然耗用的 block 就是 0 囉！
+>由上面的結果我們知道目錄並不只會佔用一個 block 而已，也就是說： 在目錄底下的檔案數如果太多而導致一個 block 無法容納的下所有的檔名與 inode 對照表時，Linux 會給予該目錄多一個 block 來繼續記錄相關的資料；
+
+#### 檔案：
+當我們在 Linux 下的 ext2 建立一個一般檔案時， ext2 會分配一個 inode 與相對於該檔案大小的 block 數量給該檔案。例如：假設我的一個 block 為 4 Kbytes ，而我要建立一個 100 KBytes 的檔案，那麼 linux 將分配一個 inode 與 25 個 block 來儲存該檔案！ 但同時請注意，由於 inode 僅有 12 個直接指向，因此還要多一個 block 來作為區塊號碼的記錄喔！
+#### 目錄樹讀取：
+好了，經過上面的說明你也應該要很清楚的知道 inode 本身並不記錄檔名，**檔名的記錄是在目錄的 block 當中**。 因此在第五章檔案與目錄的權限說明中， 我們才會提到『新增/刪除/更名檔名與目錄的 w 權限有關』的特色！**那麼因為檔名是記錄在目錄的 block 當中， 因此當我們要讀取某個檔案時，就務必會經過目錄的 inode 與 block ，然後才能夠找到那個待讀取檔案的 inode 號碼， 最終才會讀到正確的檔案的 block 內的資料**。
+
+由於目錄樹是由根目錄開始讀起，**因此系統透過掛載的資訊可以找到掛載點的 inode 號碼，此時就能夠得到根目錄的 inode 內容，並依據該 inode 讀取根目錄的 block 內的檔名資料，再一層一層的往下讀到正確的檔名**。舉例來說，如果我想要讀取 /etc/passwd 這個檔案時，系統是如何讀取的呢？
+```
+[root@study ~]# ll -di / /etc /etc/passwd
+     128 dr-xr-xr-x.  17 root root 4096 May  4 17:56 /
+33595521 drwxr-xr-x. 131 root root 8192 Jun 17 00:20 /etc
+36628004 -rw-r--r--.   1 root root 2092 Jun 17 00:20 /etc/passwd
+```
+在鳥哥的系統上面與 /etc/passwd 有關的目錄與檔案資料如上表所示，該檔案的讀取流程為(假設讀取者身份為 dmtsai 這個一般身份使用者)：
+
+1. / 的 inode：
+透過掛載點的資訊找到 inode 號碼為 128 的根目錄 inode，且 inode 規範的權限讓我們可以讀取該 block 的內容(有 r 與 x) ；
+
+2. / 的 block：
+經過上個步驟取得 block 的號碼，並找到該內容有 etc/ 目錄的 inode 號碼 (33595521)；
+
+3. etc/ 的 inode：
+讀取 33595521 號 inode 得知 dmtsai 具有 r 與 x 的權限，因此可以讀取 etc/ 的 block 內容；
+
+4. etc/ 的 block：
+經過上個步驟取得 block 號碼，並找到該內容有 passwd 檔案的 inode 號碼 (36628004)；
+
+5. passwd 的 inode：
+讀取 36628004 號 inode 得知 dmtsai 具有 r 的權限，因此可以讀取 passwd 的 block 內容；
+
+6. passwd 的 block：
+最後將該 block 內容的資料讀出來。
+
+#### filesystem 大小與磁碟讀取效能：
+另外，關於檔案系統的使用效率上，當你的一個檔案系統規劃的很大時，例如 100GB 這麼大時， 由於磁碟上面的資料總是來來去去的，所以，整個檔案系統上面的檔案通常無法連續寫在一起(block 號碼不會連續的意思)， 而是填入式的將資料填入沒有被使用的 block 當中。如果檔案寫入的 block 真的分的很散， 此時就會有所謂的檔案資料離散的問題發生了。
+
+如前所述，雖然我們的 ext2 在 inode 處已經將該檔案所記錄的 block 號碼都記上了， 所以資料可以一次性讀取，但是如果檔案真的太過離散，確實還是會發生讀取效率低落的問題。 因為磁碟讀取頭還是得要在整個檔案系統中來來去去的頻繁讀取！ 果真如此，那麼可以將整個 filesystem 內的資料全部複製出來，將該 filesystem 重新格式化， 再將資料給他複製回去即可解決這個問題。
+
+此外，如果 filesystem 真的太大了，那麼當一個檔案分別記錄在這個檔案系統的最前面與最後面的 block 號碼中， 此時會造成磁碟的機械手臂移動幅度過大，也會造成資料讀取效能的低落。而且讀取頭在搜尋整個 filesystem 時， 也會花費比較多的時間去搜尋！因此， partition 的規劃並不是越大越好， 而是真的要針對您的主機用途來進行規劃才行！^_^
+
+### 7.1.5 EXT2/EXT3/EXT4 檔案的存取與日誌式檔案系統的功能
+上一小節談到的僅是讀取而已，那麼如果是新建一個檔案或目錄時，我們的檔案系統是如何處理的呢？ 這個時候就得要 **block bitmap 及 inode bitmap** 的幫忙了！假設我們想要新增一個檔案，此時檔案系統的行為是：
+
+1. 先確定使用者對於欲新增檔案的目錄是否具有 w 與 x 的權限，若有的話才能新增；
+2. 根據 inode bitmap 找到沒有使用的 inode 號碼，並將新檔案的權限/屬性寫入；
+3. 根據 block bitmap 找到沒有使用中的 block 號碼，並將實際的資料寫入 block 中，且更新 inode 的 block 指向資料；
+4. 將剛剛寫入的 inode 與 block 資料同步更新 inode bitmap 與 block bitmap，並更新 superblock 的內容。
+
+一般來說，我們將 inode table 與 data block 稱為資料存放區域，至於其他例如 superblock、 block bitmap 與 inode bitmap 等區段就被稱為 metadata (中介資料) 囉，因為 superblock, inode bitmap 及 block bitmap 的資料是經常變動的，每次新增、移除、編輯時都可能會影響到這三個部分的資料，因此才被稱為中介資料的啦。
+#### 資料的不一致 (Inconsistent) 狀態
+发生意外，所以寫入的資料僅有 inode table 及 data block 而已， 最後一個同步更新中介資料的步驟並沒有做完，此時就會發生 metadata 的內容與實際資料存放區產生不一致 (Inconsistent) 的情況了。
+
+在早期的 Ext2 檔案系統中，如果發生這個問題， 那麼系統在重新開機的時候，就會藉由 Superblock 當中記錄的 valid bit (是否有掛載) 與 filesystem state (clean 與否) 等狀態來判斷是否強制進行資料一致性的檢查！若有需要檢查時則以 e2fsck 這支程式來進行的。
+
+不過，這樣的檢查真的是很費時～因為要針對 metadata 區域與實際資料存放區來進行比對， 呵呵～得要搜尋整個 filesystem 呢～如果你的檔案系統有 100GB 以上，而且裡面的檔案數量又多時， 哇！系統真忙碌～而且在對 Internet 提供服務的伺服器主機上面， 這樣的檢查真的會造成主機復原時間的拉長～真是麻煩～這也就造成後來所謂日誌式檔案系統的興起了。
+
+#### 日誌式檔案系統 (Journaling filesystem)
+為了避免上述提到的檔案系統不一致的情況發生，因此我們的前輩們想到一個方式， 如果在我們的 filesystem 當中規劃出一個區塊，該區塊專門在記錄寫入或修訂檔案時的步驟， 那不就可以簡化一致性檢查的步驟了？也就是說：
+
+1. 預備：當系統要寫入一個檔案時，會先在日誌記錄區塊中紀錄某個檔案準備要寫入的資訊；
+2. 實際寫入：開始寫入檔案的權限與資料；開始更新 metadata 的資料；
+3. 結束：完成資料與 metadata 的更新後，在日誌記錄區塊當中完成該檔案的紀錄。
+
+在這樣的程序當中，萬一資料的紀錄過程當中發生了問題，那麼我們的系統只要去檢查日誌記錄區塊， 就可以知道哪個檔案發生了問題，針對該問題來做一致性的檢查即可，而不必針對整塊 filesystem 去檢查， 這樣就可以達到快速修復 filesystem 的能力了！這就是日誌式檔案最基礎的功能囉～
+
+### 7.1.6 Linux 檔案系統的運作
+為了解決這個效率的問題，因此我們的 Linux 使用的方式是透過一個稱為非同步處理 (asynchronously) 的方式。所謂的非同步處理是這樣的：
+
+當系統載入一個檔案到記憶體後，如果該檔案沒有被更動過，則在記憶體區段的檔案資料會被設定為乾淨(clean)的。**但如果記憶體中的檔案資料被更改過了(例如你用 nano 去編輯過這個檔案)，此時該記憶體中的資料會被設定為髒的 (Dirty)。此時所有的動作都還在記憶體中執行，並沒有寫入到磁碟中** !系統會不定時的將記憶體中設定為『Dirty』的資料寫回磁碟，以保持磁碟與記憶體資料的一致性。 你也可以利用第四章談到的 sync指令來手動強迫寫入磁碟。
+
+我們知道記憶體的速度要比磁碟快的多，因此如果能夠將常用的檔案放置到記憶體當中，這不就會增加系統性能嗎？ 沒錯！是有這樣的想法！因此我們 Linux 系統上面檔案系統與記憶體有非常大的關係喔：
+
+- 系統會將常用的檔案資料放置到主記憶體的緩衝區，以加速檔案系統的讀/寫；
+- 承上，因此 Linux 的實體記憶體最後都會被用光！這是正常的情況！可加速系統效能；
+- 你可以手動使用 sync 來強迫記憶體中設定為 Dirty 的檔案回寫到磁碟中；
+- 若正常關機時，關機指令會主動呼叫 sync 來將記憶體的資料回寫入磁碟內；
+- 但若不正常關機(如跳電、當機或其他不明原因)，由於資料尚未回寫到磁碟內， 因此重新開機後可能會花很多時間在進行磁碟檢驗，甚至可能導致檔案系統的損毀(非磁碟損毀)。
+
+### 7.1.7 掛載點的意義 (mount point)
+每個 filesystem 都有獨立的 inode / block / superblock 等資訊，這個檔案系統要能夠連結到目錄樹才能被我們使用。 將檔案系統與目錄樹結合的動作我們稱為『掛載』。 關於掛載的一些特性我們在第二章稍微提過， 重點是：**掛載點一定是目錄，該目錄為進入該檔案系統的入口。**  因此並不是你有任何檔案系統都能使用，必須要『掛載』到目錄樹的某個目錄後，才能夠使用該檔案系統的。
+```
+kevin@ubuntu:~$ ls -ild /  /.  /..
+2 drwxr-xr-x 24 root root 4096 Oct 20 09:54 /
+2 drwxr-xr-x 24 root root 4096 Oct 20 09:54 /.
+2 drwxr-xr-x 24 root root 4096 Oct 20 09:54 /..
+```
+上面的資訊中由於掛載點均為 / ，因此三個檔案 (/, /., /..) 均在同一個 filesystem 內，而這三個檔案的 inode 號碼均為 2 號，**因此這三個檔名都指向同一個 inode 號碼，當然這三個檔案的內容也就完全一模一樣了！ 也就是說，根目錄的上層 (/..) 就是他自己！** 這麼說，看的懂了嗎？ ^_^
+
+### 7.1.8 其他 Linux 支援的檔案系統與 VFS
+
+常見的支援檔案系統有：
+
+- 傳統檔案系統：ext2 / minix / MS-DOS / FAT (用 vfat 模組) / iso9660 (光碟)等等；
+- 日誌式檔案系統： ext3 /ext4 / ReiserFS / Windows' NTFS / IBM's JFS / SGI's XFS / ZFS
+- 網路檔案系統： NFS / SMBFS
+
+##### Linux VFS (Virtual Filesystem Switch)
+瞭解了我們使用的檔案系統之後，再來則是要提到，那麼 Linux 的核心又是如何管理這些認識的檔案系統呢？ 其實，整個 Linux 的系統都是透過一個名為 Virtual Filesystem Switch 的核心功能去讀取 filesystem 的。 也就是說，整個 Linux 認識的 filesystem 其實都是 VFS 在進行管理，我們使用者並不需要知道每個 partition 上頭的 filesystem 是什麼～ VFS 會主動的幫我們做好讀取的動作呢～
+
+假設你的 / 使用的是 /dev/hda1 ，用 ext3 ，而 /home 使用 /dev/hda2 ，用 reiserfs ， 那麼你取用 /home/dmtsai/.bashrc 時，有特別指定要用的什麼檔案系統的模組來讀取嗎？ 應該是沒有吧！這個就是 VFS 的功能啦！透過這個 VFS 的功能來管理所有的 filesystem， 省去我們需要自行設定讀取檔案系統的定義啊～方便很多！整個 VFS 可以約略用下圖來說明：
+<div align=center><img src="/os_note/linux_file/picture/centos7_vfs.gif"></div>
+<div align=center>圖7.1.6、VFS 檔案系統的示意圖</div>
+
+### 7.1.9 XFS 檔案系統簡介
+#### EXT 家族當前較傷腦筋的地方：支援度最廣，但格式化超慢！
+Ext 檔案系統家族對於檔案格式化的處理方面，採用的是預先規劃出所有的 inode/block/meta data 等資料，未來系統可以直接取用， 不需要再進行動態配置的作法。這個作法在早期磁碟容量還不大的時候還算 OK 沒啥問題，但時至今日，磁碟容量越來越大，連傳統的 MBR 都已經被 GPT 所取代，連我們這些老人家以前聽到的超大 TB 容量也已經不夠看了！現在都已經說到 PB 或 EB 以上容量了呢！那妳可以想像得到，當你的 TB 以上等級的傳統 ext 家族檔案系統在格式化的時候，光是系統要預先分配 inode 與 block 就消耗你好多好多的人類時間了
+
+xfs 檔案系統在資料的分佈上，主要規劃為三個部份，一個資料區 (data section)、一個檔案系統活動登錄區 (log section)以及一個即時運作區 (realtime section)。 這三個區域的資料內容如下：
+
+- 資料區 (data section)
+
+基本上，資料區就跟我們之前談到的 ext 家族一樣，包括 inode/data block/superblock 等資料，都放置在這個區塊。 這個資料區與 ext 家族的 block group 類似，也是分為多個儲存區群組 (allocation groups) 來分別放置檔案系統所需要的資料。 每個儲存區群組都包含了 (1)整個檔案系統的 superblock、 (2)剩餘空間的管理機制、 (3)inode的分配與追蹤。此外，inode與 block 都是系統需要用到時， 這才動態配置產生，所以格式化動作超級快！
+
+- 檔案系統活動登錄區 (log section)
+
+在登錄區這個區域主要被用來紀錄檔案系統的變化，其實有點像是日誌區啦！檔案的變化會在這裡紀錄下來，直到該變化完整的寫入到資料區後， 該筆紀錄才會被終結。如果檔案系統因為某些緣故 (例如最常見的停電) 而損毀時，系統會拿這個登錄區塊來進行檢驗，看看系統掛掉之前， 檔案系統正在運作些啥動作，藉以快速的修復檔案系統。
+- 即時運作區 (realtime section)
+
+當有檔案要被建立時，xfs 會在這個區段裡面找一個到數個的 extent 區塊，將檔案放置在這個區塊內，等到分配完畢後，再寫入到 data section 的 inode 與 block 去！ 這個 extent 區塊的大小得要在格式化的時候就先指定，最小值是 4K 最大可到 1G。一般非磁碟陣列的磁碟預設為 64K 容量，而具有類似磁碟陣列的 stripe 情況下，則建議 extent 設定為與 stripe 一樣大較佳。這個 extent 最好不要亂動，因為可能會影響到實體磁碟的效能喔。
+
+## 7.2 檔案系統的簡單操作
+### 7.2.1 磁碟與目錄的容量
+
+現在我們知道磁碟的整體資料是在 superblock 區塊中，但是每個各別檔案的容量則在 inode 當中記載的。 那在文字介面底下該如何叫出這幾個資料呢？底下就讓我們來談一談這兩個指令：
+
+- df：列出檔案系統的整體磁碟使用量；
+- du：評估檔案系統的磁碟使用量(常用在推估目錄所佔容量)
+
+#### df
+**使用方式**
+```
+[root@study ~]# df [-ahikHTm] [目錄或檔名]
+選項與參數：
+-a  ：列出所有的檔案系統，包括系統特有的 /proc 等檔案系統；
+-k  ：以 KBytes 的容量顯示各檔案系統；
+-m  ：以 MBytes 的容量顯示各檔案系統；
+-h  ：以人們較易閱讀的 GBytes, MBytes, KBytes 等格式自行顯示；
+-H  ：以 M=1000K 取代 M=1024K 的進位方式；
+-T  ：連同該 partition 的 filesystem 名稱 (例如 xfs) 也列出；
+-i  ：不用磁碟容量，而以 inode 的數量來顯示
+```
+**example**
+```
+kevin@ubuntu:~$ df
+Filesystem     1K-blocks     Used Available Use% Mounted on
+udev             2743268        0   2743268   0% /dev
+tmpfs             553688     2208    551480   1% /run
+/dev/sda1       51420796 30888204  18104648  64% /
+tmpfs            2768432        0   2768432   0% /dev/shm
+tmpfs               5120        4      5116   1% /run/lock
+tmpfs            2768432        0   2768432   0% /sys/fs/cgroup
+/dev/loop0        354688   354688         0 100% /snap/gnome-3-38-2004/115
+/dev/loop1          2688     2688         0 100% /snap/gnome-calculator/920
+/dev/loop2         56960    56960         0 100% /snap/core18/2566
+/dev/loop3         66816    66816         0 100% /snap/gtk-common-themes/1519
+/dev/loop4         93952    93952         0 100% /snap/gtk-common-themes/1535
+/dev/loop5        224256   224256         0 100% /snap/gnome-3-34-1804/77
+/dev/loop6         64768    64768         0 100% /snap/core20/1623
+/dev/loop7        117760   117760         0 100% /snap/core/13886
+/dev/loop8        354688   354688         0 100% /snap/gnome-3-38-2004/119
+/dev/loop9        168832   168832         0 100% /snap/gnome-3-28-1804/161
+/dev/loop10       261120   261120         0 100% /snap/clash/1476
+/dev/loop11         1536     1536         0 100% /snap/gnome-system-monitor/181
+/dev/loop12       116736   116736         0 100% /snap/core/13425
+/dev/loop14        72192    72192         0 100% /snap/core22/275
+/dev/loop13       164096   164096         0 100% /snap/gnome-3-28-1804/116
+/dev/loop15         2688     2688         0 100% /snap/gnome-system-monitor/178
+/dev/loop16          768      768         0 100% /snap/gnome-logs/115
+/dev/loop18         4352     4352         0 100% /snap/tree/18
+/dev/loop17        74624    74624         0 100% /snap/core22/310
+/dev/loop19          640      640         0 100% /snap/gnome-logs/112
+/dev/loop20          768      768         0 100% /snap/gnome-characters/741
+/dev/loop21         4352     4352         0 100% /snap/gnome-calculator/544
+/dev/loop22        56960    56960         0 100% /snap/core18/2409
+/dev/loop23          128      128         0 100% /snap/bare/5
+/dev/loop24        63488    63488         0 100% /snap/core20/1518
+/dev/loop25          512      512         0 100% /snap/gnome-characters/781
+/dev/loop26       424320   424320         0 100% /snap/gnome-42-2204/29
+tmpfs             553684       16    553668   1% /run/user/121
+tmpfs             553684       32    553652   1% /run/user/1000
+```
+
+先來說明一下範例一所輸出的結果訊息為：
+
+- Filesystem：代表該檔案系統是在哪個 partition ，所以列出裝置名稱；
+- 1k-blocks：說明底下的數字單位是 1KB 呦！可利用 -h 或 -m 來改變容量；
+- Used：顧名思義，就是使用掉的磁碟空間啦！
+- Available：也就是剩下的磁碟空間大小；
+- Use%：就是磁碟的使用率啦！如果使用率高達 90% 以上時， 最好需要注意一下了，免得容量不足造成系統問題喔！(例如最容易被灌爆的 /var/spool/mail 這個放置郵件的磁碟)
+- Mounted on：就是磁碟掛載的目錄所在啦！(掛載點啦！)
+
+**example 2**
+```
+kevin@ubuntu:~$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+udev            2.7G     0  2.7G   0% /dev
+tmpfs           541M  2.2M  539M   1% /run
+/dev/sda1        50G   30G   18G  64% /
+tmpfs           2.7G     0  2.7G   0% /dev/shm
+tmpfs           5.0M  4.0K  5.0M   1% /run/lock
+tmpfs           2.7G     0  2.7G   0% /sys/fs/cgroup
+/dev/loop0      347M  347M     0 100% /snap/gnome-3-38-2004/115
+/dev/loop1      2.7M  2.7M     0 100% /snap/gnome-calculator/920
+/dev/loop2       56M   56M     0 100% /snap/core18/2566
+/dev/loop3       66M   66M     0 100% /snap/gtk-common-themes/1519
+/dev/loop4       92M   92M     0 100% /snap/gtk-common-themes/1535
+/dev/loop5      219M  219M     0 100% /snap/gnome-3-34-1804/77
+/dev/loop6       64M   64M     0 100% /snap/core20/1623
+/dev/loop7      115M  115M     0 100% /snap/core/13886
+/dev/loop8      347M  347M     0 100% /snap/gnome-3-38-2004/119
+/dev/loop9      165M  165M     0 100% /snap/gnome-3-28-1804/161
+/dev/loop10     255M  255M     0 100% /snap/clash/1476
+/dev/loop11     1.5M  1.5M     0 100% /snap/gnome-system-monitor/181
+/dev/loop12     114M  114M     0 100% /snap/core/13425
+/dev/loop14      71M   71M     0 100% /snap/core22/275
+/dev/loop13     161M  161M     0 100% /snap/gnome-3-28-1804/116
+/dev/loop15     2.7M  2.7M     0 100% /snap/gnome-system-monitor/178
+/dev/loop16     768K  768K     0 100% /snap/gnome-logs/115
+/dev/loop18     4.3M  4.3M     0 100% /snap/tree/18
+/dev/loop17      73M   73M     0 100% /snap/core22/310
+/dev/loop19     640K  640K     0 100% /snap/gnome-logs/112
+/dev/loop20     768K  768K     0 100% /snap/gnome-characters/741
+/dev/loop21     4.3M  4.3M     0 100% /snap/gnome-calculator/544
+/dev/loop22      56M   56M     0 100% /snap/core18/2409
+/dev/loop23     128K  128K     0 100% /snap/bare/5
+/dev/loop24      62M   62M     0 100% /snap/core20/1518
+/dev/loop25     512K  512K     0 100% /snap/gnome-characters/781
+/dev/loop26     415M  415M     0 100% /snap/gnome-42-2204/29
+tmpfs           541M   16K  541M   1% /run/user/121
+tmpfs           541M   32K  541M   1% /run/user/1000
+```
+**example 3**
+```
+### 展示/下面挂载的磁盘容量
+kevin@ubuntu:~$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        50G   30G   18G  64% /
+```
+
+**example 4**
+```
+### 展示-i参数 inode数量
+kevin@ubuntu:~$ df -ih /
+Filesystem     Inodes IUsed IFree IUse% Mounted on
+/dev/sda1        3.2M  678K  2.5M   22% /
+```
+
+df读取superblock中间的内容
+**由於 df 主要讀取的資料幾乎都是針對一整個檔案系統，因此讀取的範圍主要是在 Superblock 內的資訊**， 所以這個指令顯示結果的速度非常的快速！在顯示的結果中你需要特別留意的是那個根目錄的剩餘容量！ 因為我們所有的資料都是由根目錄衍生出來的，因此當根目錄的剩餘容量剩下 0 時，那你的 Linux 可能就問題很大了。
+
+/proc
+另外需要注意的是，**如果使用 -a 這個參數時，系統會出現 /proc 這個掛載點，但是裡面的東西都是 0 ，不要緊張！ /proc 的東西都是 Linux 系統所需要載入的系統資料，而且是掛載在『記憶體當中』的， 所以當然沒有佔任何的磁碟空間囉！**
+
+至於那個 /dev/shm/ 目錄，其實是利用記憶體虛擬出來的磁碟空間，通常是總實體記憶體的一半！ 由於是透過記憶體模擬出來的磁碟，因此你在這個目錄底下建立任何資料檔案時，存取速度是非常快速的！(在記憶體內工作) 不過，也由於他是記憶體模擬出來的，因此這個檔案系統的大小在每部主機上都不一樣，而且建立的東西在下次開機時就消失了！ 因為是在記憶體中嘛！
+
+#### du
+**usage**
+```
+[root@study ~]# du [-ahskm] 檔案或目錄名稱
+選項與參數：
+-a  ：列出所有的檔案與目錄容量，因為預設僅統計目錄底下的檔案量而已。
+-h  ：以人們較易讀的容量格式 (G/M) 顯示；
+-s  ：列出總量而已，而不列出每個各別的目錄佔用容量；
+-S  ：不包括子目錄下的總計，與 -s 有點差別。
+-k  ：以 KBytes 列出容量顯示；
+-m  ：以 MBytes 列出容量顯示；
+
+# 直接輸入 du 沒有加任何選項時，則 du 會分析『目前所在目錄』
+# 的檔案與目錄所佔用的磁碟空間。但是，實際顯示時，僅會顯示目錄容量(不含檔案)，
+# 因此 . 目錄有很多檔案沒有被列出來，所以全部的目錄相加不會等於 . 的容量喔！
+# 此外，輸出的數值資料為 1K 大小的容量單位。
+```
+**example **
+```
+example 1
+kevin@ubuntu:~/os/os_note$ du
+4       ./install_centos
+20      ./linux_command
+584     ./linux_file/picture
+744     ./linux_file
+4       ./compress/picture
+8       ./compress
+616     ./linux_environment/picture
+648     ./linux_environment
+44      ./elementary_knowledge/picture
+60      ./elementary_knowledge
+1488    .
+# 直接輸入 du 沒有加任何選項時，則 du 會分析『目前所在目錄』
+# 的檔案與目錄所佔用的磁碟空間。但是，實際顯示時，僅會顯示目錄容量(不含檔案)，
+# 因此 . 目錄有很多檔案沒有被列出來，所以全部的目錄相加不會等於 . 的容量喔！
+# 此外，輸出的數值資料為 1K 大小的容量單位。
+
+範例二：同範例一，但是將檔案的容量也列出來
+kevin@ubuntu:~/os/os_note$ du -a
+4       ./install_centos
+16      ./linux_command/chapter4.md
+20      ./linux_command
+156     ./linux_file/chapter5.md
+24      ./linux_file/picture/0210filepermission_1.jpg
+88      ./linux_file/picture/屏幕截图 2022-10-21 103511.png
+20      ./linux_file/picture/filesystem-1.jpg
+8       ./linux_file/picture/centos7_dir_block.jpg
+12      ./linux_file/picture/filesystem-2.jpg
+16      ./linux_file/picture/ext2_filesystem.jpg
+272     ./linux_file/picture/屏幕截图 2022-10-20 171917.png
+8       ./linux_file/picture/0210filepermission_3.gif
+16      ./linux_file/picture/centos7_vfs.gif
+48      ./linux_file/picture/inode.jpg
+40      ./linux_file/picture/屏幕截图 2022-10-20 170043.png
+12      ./linux_file/picture/centos7_0210filepermission_2.gif
+4       ./linux_file/picture/find_time.gif
+12      ./linux_file/picture/屏幕截图 2022-10-20 155540.png
+584     ./linux_file/picture
+744     ./linux_file
+4       ./compress/picture
+8       ./compress
+28      ./linux_environment/chapter2_Linux_environment.md
+8       ./linux_environment/picture/dirtree.gif
+320     ./linux_environment/picture/磁盘示意.png
+84      ./linux_environment/picture/bios or uefi.png
+120     ./linux_environment/picture/各类设备名称.png
+20      ./linux_environment/picture/partition-2.png
+36      ./linux_environment/picture/gpt_partition_1.jpg
+12      ./linux_environment/picture/loader.gif
+12      ./linux_environment/picture/mbr disk partition-1.png
+616     ./linux_environment/picture
+648     ./linux_environment
+12      ./elementary_knowledge/linux_elementary_knowledge.md
+40      ./elementary_knowledge/picture/Linux distribution classify.png
+44      ./elementary_knowledge/picture
+60      ./elementary_knowledge
+1488    .
+
+```
+
+與 df 不一樣的是，du 這個指令其實會直接到檔案系統內去搜尋所有的檔案資料， 所以上述第三個範例指令的運作會執行一小段時間！此外，在預設的情況下，容量的輸出是以 KB 來設計的， 如果你想要知道目錄佔了多少 MB ，那麼就使用 -m 這個參數即可囉！而， 如果你只想要知道該目錄佔了多少容量的話，使用 -s 就可以啦！
+
+至於 -S 這個選項部分，由於 du 預設會將所有檔案的大小均列出，因此假設你在 /etc 底下使用 du 時， 所有的檔案大小，包括 /etc 底下的次目錄容量也會被計算一次。然後最終的容量 (/etc) 也會加總一次， 因此很多朋友都會誤會 du 分析的結果不太對勁。所以囉，如果想要列出某目錄下的全部資料， 或許也可以加上 -S 的選項，減少次目錄的加總喔！
+
+### 7.2.2 實體連結與符號連結： ln
+關於連結(link)資料我們第五章的Linux檔案屬性及Linux檔案種類與副檔名當中提過一些資訊， 不過當時由於尚未講到檔案系統，因此無法較完整的介紹連結檔啦。不過在上一小節談完了檔案系統後， 我們可以來瞭解一下連結檔這玩意兒了。
+
+在 Linux 底下的連結檔有兩種，一種是類似 Windows 的捷徑功能的檔案，可以讓你快速的連結到目標檔案(或目錄)； 另一種則是透過檔案系統的 inode 連結來產生新檔名，而不是產生新檔案！這種稱為實體連結 (hard link)。 這兩種玩意兒是完全不一樣的東西呢！現在就分別來談談。
+
+#### Hard Link (實體連結, 硬式連結或實際連結)
+
