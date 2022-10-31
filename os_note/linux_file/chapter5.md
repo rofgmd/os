@@ -2259,4 +2259,118 @@ kevin@ubuntu:~/os/os_note$ du -a
 在 Linux 底下的連結檔有兩種，一種是類似 Windows 的捷徑功能的檔案，可以讓你快速的連結到目標檔案(或目錄)； 另一種則是透過檔案系統的 inode 連結來產生新檔名，而不是產生新檔案！這種稱為實體連結 (hard link)。 這兩種玩意兒是完全不一樣的東西呢！現在就分別來談談。
 
 #### Hard Link (實體連結, 硬式連結或實際連結)
+在前一小節當中，我們知道幾件重要的資訊，包括：
+
+- 每個檔案都會佔用一個 inode ，檔案內容由 inode 的記錄來指向；
+- 想要讀取該檔案，必須要經過目錄記錄的檔名來指向到正確的 inode 號碼才能讀取。
+
+
+也就是說，其實檔名只與目錄有關，但是檔案內容則與 inode 有關。那麼想一想， 有沒有可能有多個檔名對應到同一個 inode 號碼呢？有的！那就是 hard link 的由來。 所以簡單的說：hard link 只是在某個目錄下新增一筆檔名連結到某 inode 號碼的關連記錄而已。
+
+舉個例子來說，假設我系統有個 /root/crontab 他是 /etc/crontab 的實體連結，也就是說這兩個檔名連結到同一個 inode ， 自然這兩個檔名的所有相關資訊都會一模一樣(除了檔名之外)。實際的情況可以如下所示：
+```
+kevin@ubuntu:~$ ll -i git_learn/
+total 1020
+1778411 drwxrwxr-x  6 kevin kevin    4096 Oct 19 10:53 ./
+1714999 drwxr-xr-x 40 kevin kevin    4096 Oct 31 17:11 ../
+1778619 drwxrwxr-x  2 kevin kevin    4096 Oct 12 14:58 bin/
+1778412 drwxrwxr-x  8 kevin kevin    4096 Oct 12 15:13 .git/
+1748149 -rwxrw-rw-  1 kevin kevin 1000924 Oct 12 15:07 git_learn_route_chart*
+1778613 drwxrwxr-x  2 kevin kevin    4096 Oct 12 14:55 lib/
+1748147 -rwxrw-r--  1 kevin kevin     163 Oct 12 15:10 readme.md*
+1748139 -rwxrwxr-x  1 kevin kevin     143 Oct 12 14:57 sample.cpp*
+1708703 -rwxrwxr-x  1 kevin kevin       0 Oct 11 16:19 sample.py*
+1748128 -rwxrwxr-x  1 kevin kevin      90 Oct 12 14:35 sample.txt*
+1778612 drwxrwxr-x  2 kevin kevin    4096 Oct 12 14:43 src/
+1748325 -rw-rw-r--  1 kevin kevin      46 Oct 19 10:53 text.txt
+kevin@ubuntu:~$ ln ./git_learn/sample.cpp ./test/test.cpp
+kevin@ubuntu:~$ ls -li ./git_learn/
+total 1008
+1778619 drwxrwxr-x 2 kevin kevin    4096 Oct 12 14:58 bin
+1748149 -rwxrw-rw- 1 kevin kevin 1000924 Oct 12 15:07 git_learn_route_chart
+1778613 drwxrwxr-x 2 kevin kevin    4096 Oct 12 14:55 lib
+1748147 -rwxrw-r-- 1 kevin kevin     163 Oct 12 15:10 readme.md
+1748139 -rwxrwxr-x 2 kevin kevin     143 Oct 12 14:57 sample.cpp
+1708703 -rwxrwxr-x 1 kevin kevin       0 Oct 11 16:19 sample.py
+1748128 -rwxrwxr-x 1 kevin kevin      90 Oct 12 14:35 sample.txt
+1778612 drwxrwxr-x 2 kevin kevin    4096 Oct 12 14:43 src
+1748325 -rw-rw-r-- 1 kevin kevin      46 Oct 19 10:53 text.txt
+kevin@ubuntu:~$ ls -li ./test/
+total 4
+1748139 -rwxrwxr-x 2 kevin kevin 143 Oct 12 14:57 test.cpp
+```
+你可以發現兩個檔名都連結到 1748139 這個 inode 號碼，所以您瞧瞧，是否檔案的權限/屬性完全一樣呢？ 因為這兩個『檔名』其實是一模一樣的『檔案』啦！而且你也會發現第二個欄位由原本的 1 變成 2 了！ 那個欄位稱為『連結』，這個欄位的意義為：『有多少個檔名連結到這個 inode 號碼』的意思。 如果將讀取到正確資料的方式畫成示意圖，就類似如下畫面：
+<div align=center><img src="/os_note/linux_file/picture/hard_link1.gif"></div>
+<div align=center>圖7.2.1、實體連結的檔案讀取示意圖</div>
+
+上圖的意思是，你可以透過 1 或 2 的目錄之 inode 指定的 block 找到兩個不同的檔名，而不管使用哪個檔名均可以指到 real 那個 inode 去讀取到最終資料！那這樣有什麼好處呢？最大的好處就是『安全』！如同上圖中， 如果你將任何一個『檔名』刪除，其實 inode 與 block 都還是存在的！ 此時你可以透過另一個『檔名』來讀取到正確的檔案資料喔！此外，不論你使用哪個『檔名』來編輯， 最終的結果都會寫入到相同的 inode 與 block 中，因此均能進行資料的修改哩！
+
+一般來說，使用 hard link 設定連結檔時，磁碟的空間與 inode 的數目都不會改變！ 我們還是由圖 7.2.1 來看，由圖中可以知道， hard link 只是在某個目錄下的 block 多寫入一個關連資料而已，既不會增加 inode 也不會耗用 block 數量哩！
+
+由圖 7.2.1 其實我們也能夠知道，事實上 hard link 應該僅能在單一檔案系統中進行的，應該是不能夠跨檔案系統才對！ 因為圖 7.2.1 就是在同一個 filesystem 上嘛！所以 hard link 是有限制的：
+
+- 不能跨 Filesystem；
+- 不能 link 目錄。
+
+不能跨 Filesystem 還好理解，那不能 hard link 到目錄又是怎麼回事呢？這是因為如果使用 hard link 連結到目錄時， 連結的新目錄得要多出一個 . 以及 .. ，那個 .. 就會導致父目錄也多出一個新的連結計算，如果多重處理時， 很可能會導致目錄搜尋時的錯誤循環問題，導致一個名為死結 (打了死結，一直在裡面轉不出來) 的困境！同時， 如果是在不同的目錄底下建立目錄的 hard link 時，將可能會導致『同一個目錄會有好幾個父目錄』的存在！ 因此， hard link 一個目錄不是做不到，而是建議不要做！避免產生檔案系統錯亂的困擾啊！舉例來說，底下為兩個互為 hard link 的目錄：
+
+你在 aadir 看到的資料應該是要跟 bbdir 看到的一樣，但是 aadir 的 .. 會是 aapdir ，不過 bbdir 的 .. 卻變成 bbpdir， 明明是互為連結的 hard link 目錄，裡面的 .. 卻指向不同的地方～這就傷腦筋了！為了避免許多這方面的困擾，所以才建議不要使用 hard link 在目錄上的！
+
+>Linux 文件系统中的目录均隐藏了两个个特殊的目录当前目录（.）和父目录（..），如果允许对目录进行硬链接，大家来看一下下面两种情况：
+>情况A：存在一个/usr/local/myapp的目录， 我们将他hard link 链接到/root/目录ln /usr/local/myapp /root/myapp 那么请问，myapp目录里的(..)访问父目录，是指的/usr/local呢，还是/root/呢？
+>情况B: 如果存在目录/root/test/a 和 目录/root/app/b 如果a是app目录的hard link, b是test 的hard link, 这时就形成了循环引用，假设可以这样设定，那么/root/test/a 既然是/root/app/目录，里面肯定有b, 这时可以访问 /root/test/a/b ，此时你发现b又是/root/test/的hard link 那么b里肯定有a，这时你课可以访问/root/test/a/b/a，以此循环/root/test/a/b/a/b/a/b/a/b/.... 难道你不觉得这样有问题吗？
+>作者：时光猫投资
+链接：https://www.zhihu.com/question/50223526/answer/864874726
+来源：知乎
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+#### Symbolic Link (符號連結，亦即是捷徑)
+相對於 hard link ， Symbolic link 可就好理解多了，基本上， Symbolic link 就是在建立一個獨立的檔案，而這個檔案會讓資料的讀取指向他 link 的那個檔案的檔名！由於只是利用檔案來做為指向的動作， 所以，當來源檔被刪除之後，symbolic link 的檔案會『開不了』， 會一直說『無法開啟某檔案！』。實際上就是找不到原始『檔名』而已啦！
+```
+kevin@ubuntu:~$ ln -s ./git_learn/sample.txt ./test/test.txt
+kevin@ubuntu:~$ ll -i git_learn/ test/
+git_learn/:
+total 1020
+1778411 drwxrwxr-x  6 kevin kevin    4096 Oct 19 10:53 ./
+1714999 drwxr-xr-x 41 kevin kevin    4096 Oct 31 17:25 ../
+1778619 drwxrwxr-x  2 kevin kevin    4096 Oct 12 14:58 bin/
+1778412 drwxrwxr-x  8 kevin kevin    4096 Oct 12 15:13 .git/
+1748149 -rwxrw-rw-  1 kevin kevin 1000924 Oct 12 15:07 git_learn_route_chart*
+1778613 drwxrwxr-x  2 kevin kevin    4096 Oct 12 14:55 lib/
+1748147 -rwxrw-r--  1 kevin kevin     163 Oct 12 15:10 readme.md*
+1748139 -rwxrwxr-x  2 kevin kevin     143 Oct 12 14:57 sample.cpp*
+1708703 -rwxrwxr-x  1 kevin kevin       0 Oct 11 16:19 sample.py*
+1748128 -rwxrwxr-x  1 kevin kevin      90 Oct 12 14:35 sample.txt*
+1778612 drwxrwxr-x  2 kevin kevin    4096 Oct 12 14:43 src/
+1748325 -rw-rw-r--  1 kevin kevin      46 Oct 19 10:53 text.txt
+
+test/:
+total 12
+2494365 drwxrwxr-x  2 kevin kevin 4096 Oct 31 19:38 ./
+1714999 drwxr-xr-x 41 kevin kevin 4096 Oct 31 17:25 ../
+1748139 -rwxrwxr-x  2 kevin kevin  143 Oct 12 14:57 test.cpp*
+2492506 lrwxrwxrwx  1 kevin kevin   22 Oct 31 19:38 test.txt -> ./git_learn/sample.txt
+```
+
+由上表的結果我們可以知道兩個檔案指向不同的 inode 號碼，當然就是兩個獨立的檔案存在！ 而且連結檔的重要內容就是他會寫上目標檔案的『檔名』， 你可以發現為什麼上表中連結檔的大小為 12 bytes 呢？ 因為箭頭(-->)右邊的檔名『/etc/crontab』總共有 12 個英文，每個英文佔用 1 個 bytes ，所以檔案大小就是 12bytes了！
+
+關於上述的說明，我們以如下圖示來解釋：
+
+<div align=center><img src="/os_note/linux_file/picture/symbolic_link1.gif"></div>
+<div align=center>圖7.2.2、符號連結的檔案讀取示意圖</div>
+
+由 1 號 inode 讀取到連結檔的內容僅有檔名，根據檔名連結到正確的目錄去取得目標檔案的 inode ， 最終就能夠讀取到正確的資料了。你可以發現的是，如果目標檔案(/etc/crontab)被刪除了，那麼整個環節就會無法繼續進行下去， 所以就會發生無法透過連結檔讀取的問題了！
+
+這裡還是得特別留意，這個 Symbolic Link 與 Windows 的捷徑可以給他劃上等號，由 Symbolic link 所建立的檔案為一個獨立的新的檔案，所以會佔用掉 inode 與 block 喔！
+
+由上面的說明來看，似乎 hard link 比較安全，因為即使某一個目錄下的關連資料被殺掉了， 也沒有關係，只要有任何一個目錄下存在著關連資料，那麼該檔案就不會不見！舉上面的例子來說，我的 /etc/crontab 與 /root/crontab 指向同一個檔案，如果我刪除了 /etc/crontab 這個檔案，該刪除的動作其實只是將 /etc 目錄下關於 crontab 的關連資料拿掉而已， crontab 所在的 inode 與 block 其實都沒有被變動喔！
+
+不過由於 Hard Link 的限制太多了，包括無法做『目錄』的 link ， 所以在用途上面是比較受限的！反而是 Symbolic Link 的使用方面較廣喔！好了， 說的天花亂墜，看你也差不多快要昏倒了！沒關係，實作一下就知道怎麼回事了！要製作連結檔就必須要使用 ln 這個指令呢！
+
+```
+[root@study ~]# ln [-sf] 來源檔 目標檔
+選項與參數：
+-s  ：如果不加任何參數就進行連結，那就是hard link，至於 -s 就是symbolic link
+-f  ：如果 目標檔 存在時，就主動的將目標檔直接移除後再建立！
+```
 
