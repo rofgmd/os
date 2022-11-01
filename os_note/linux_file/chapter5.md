@@ -2374,3 +2374,218 @@ total 12
 -f  ：如果 目標檔 存在時，就主動的將目標檔直接移除後再建立！
 ```
 
+要注意囉！使用 ln 如果不加任何參數的話，那麼就是 Hard Link 囉！如同範例二的情況，增加了 hard link 之後，可以發現使用 ls -l 時，顯示的 link 那一欄屬性增加了！而如果這個時候砍掉 passwd 會發生什麼事情呢？passwd-hd 的內容還是會跟原來 passwd 相同，但是 passwd-so 就會找不到該檔案啦！
+
+而如果 ln 使用 -s 的參數時，就做成差不多是 Windows 底下的『捷徑』的意思。當你修改 Linux 下的 symbolic link 檔案時，則更動的其實是『原始檔』， 所以不論你的這個原始檔被連結到哪裡去，只要你修改了連結檔，原始檔就跟著變囉！ 以上面為例，由於你使用 -s 的參數建立一個名為 passwd-so 的檔案，則你修改 passwd-so 時，其內容與 passwd 完全相同，並且，當你按下儲存之後，被改變的將是 passwd 這個檔案！
+
+那麼如果你進入 /root/bin 這個目錄下，『請注意呦！**該目錄其實是 /bin 這個目錄，因為你做了連結檔了**！』所以，如果你進入 /root/bin 這個剛剛建立的連結目錄， 並且將其中的資料殺掉時，嗯！ /bin 裡面的資料就通通不見了！這點請千萬注意！所以趕緊利用『rm /root/bin 』 將這個連結檔刪除吧！
+
+#### 關於目錄的 link 數量：
+或許您已經發現了，那就是，當我們以 hard link 進行『檔案的連結』時，可以發現，在 ls -l 所顯示的第二欄位會增加一才對，那麼請教，如果建立目錄時，**他預設的 link 數量會是多少？** 讓我們來想一想，一個『空目錄』裡面至少會存在些什麼？呵呵！就是存在 . 與 .. 這兩個目錄啊！ 那麼，當我們建立一個新目錄名稱為 /tmp/testing 時，基本上會有三個東西，那就是：
+
+- /tmp/testing
+- /tmp/testing/.
+- /tmp/testing/..
+
+而其中 /tmp/testing 與 /tmp/testing/. 其實是一樣的！都代表該目錄啊～而 /tmp/testing/.. 則代表 /tmp 這個目錄，所以說，當我們建立一個新的目錄時， 『新的目錄的 link 數為 2 ，而上層目錄的 link 數則會增加 1 』 
+
+## 7.3 磁碟的分割、格式化、檢驗與掛載
+對於一個系統管理者( root )而言，磁碟的的管理是相當重要的一環，尤其近來磁碟已經漸漸的被當成是消耗品了 ..... 如果我們想要在系統裡面新增一顆磁碟時，應該有哪些動作需要做的呢：
+
+- 對磁碟進行分割，以建立可用的 partition ；
+- 對該 partition 進行格式化 (format)，以建立系統可用的 filesystem；
+- 若想要仔細一點，則可對剛剛建立好的 filesystem 進行檢驗；
+- 在 Linux 系統上，需要建立掛載點 (亦即是目錄)，並將他掛載上來；
+
+### 7.3.1 觀察磁碟分割狀態
+由於目前磁碟分割主要有 MBR 以及 GPT 兩種格式，這兩種格式所使用的分割工具不太一樣！你當然可以使用本章預計最後才介紹的 parted 這個通通有支援的工具來處理，不過，我們還是比較習慣使用 fdisk 或者是 gdisk 來處理分割啊！因此，我們自然就得要去找一下目前系統有的磁碟有哪些？ 這些磁碟是 MBR 還是 GPT 等等的！這樣才能處理啦！
+
+#### lsblk 列出系統上的所有磁碟列表
+lsblk 可以看成『 list block device 』的縮寫，就是列出所有儲存裝置的意思！這個工具軟體真的很好用喔！來瞧一瞧！
+```
+[root@study ~]# lsblk [-dfimpt] [device]
+選項與參數：
+-d  ：僅列出磁碟本身，並不會列出該磁碟的分割資料
+-f  ：同時列出該磁碟內的檔案系統名稱
+-i  ：使用 ASCII 的線段輸出，不要使用複雜的編碼 (再某些環境下很有用)
+-m  ：同時輸出該裝置在 /dev 底下的權限資料 (rwx 的資料)
+-p  ：列出該裝置的完整檔名！而不是僅列出最後的名字而已。
+-t  ：列出該磁碟裝置的詳細資料，包括磁碟佇列機制、預讀寫的資料量大小等
+
+範例一：列出本系統下的所有磁碟與磁碟內的分割資訊
+kevin@ubuntu:~/os$ lsblk
+NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+loop0    7:0    0 414.4M  1 loop /snap/gnome-42-2204/29
+loop1    7:1    0   4.2M  1 loop /snap/gnome-calculator/544
+loop2    7:2    0   1.5M  1 loop /snap/gnome-system-monitor/181
+loop3    7:3    0  65.2M  1 loop /snap/gtk-common-themes/1519
+loop4    7:4    0   219M  1 loop /snap/gnome-3-34-1804/77
+loop5    7:5    0 254.9M  1 loop /snap/clash/1476
+loop6    7:6    0   114M  1 loop /snap/core/13425
+loop7    7:7    0   556K  1 loop /snap/gnome-logs/112
+loop8    7:8    0   115M  1 loop /snap/core/13886
+loop9    7:9    0 346.3M  1 loop /snap/gnome-3-38-2004/119
+loop10   7:10   0   476K  1 loop /snap/gnome-characters/781
+loop11   7:11   0  63.2M  1 loop /snap/core20/1623
+loop12   7:12   0   696K  1 loop /snap/gnome-logs/115
+loop13   7:13   0  91.7M  1 loop /snap/gtk-common-themes/1535
+loop14   7:14   0  61.9M  1 loop /snap/core20/1518
+loop15   7:15   0 346.3M  1 loop /snap/gnome-3-38-2004/115
+loop16   7:16   0   4.2M  1 loop /snap/tree/18
+loop17   7:17   0     4K  1 loop /snap/bare/5
+loop18   7:18   0  55.6M  1 loop /snap/core18/2566
+loop19   7:19   0  72.8M  1 loop /snap/core22/310
+loop20   7:20   0   2.6M  1 loop /snap/gnome-system-monitor/178
+loop21   7:21   0 160.2M  1 loop /snap/gnome-3-28-1804/116
+loop22   7:22   0   2.6M  1 loop /snap/gnome-calculator/920
+loop23   7:23   0  70.4M  1 loop /snap/core22/275
+loop24   7:24   0 164.8M  1 loop /snap/gnome-3-28-1804/161
+loop25   7:25   0   704K  1 loop /snap/gnome-characters/741
+loop26   7:26   0  55.5M  1 loop /snap/core18/2409
+sda      8:0    0    50G  0 disk 
+└─sda1   8:1    0    50G  0 part /
+sr0     11:0    1  1024M  0 rom
+```
+從範例一我們來談談預設輸出的資訊有哪些。
+- NAME：就是裝置的檔名囉！會省略 /dev 等前導目錄！
+- MAJ:MIN：其實核心認識的裝置都是透過這兩個代碼來熟悉的！分別是主要：次要裝置代碼！
+- RM：是否為可卸載裝置 (removable device)，如光碟、USB 磁碟等等
+- SIZE：當然就是容量囉！
+- RO：是否為唯讀裝置的意思
+- TYPE：是磁碟 (disk)、分割槽 (partition) 還是唯讀記憶體 (rom) 等輸出
+- MOUTPOINT：就是前一章談到的掛載點！
+
+```
+範例二：僅列出 /dev/sda 裝置內的所有資料的完整檔名
+kevin@ubuntu:~/os$ lsblk -ip /dev/sda
+NAME        MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+/dev/sda      8:0    0  50G  0 disk 
+`-/dev/sda1   8:1    0  50G  0 part /
+```
+
+#### blkid 列出裝置的 UUID 等參數
+雖然 lsblk 已經可以使用 -f 來列出檔案系統與裝置的 UUID 資料，不過，鳥哥還是比較習慣直接使用 blkid 來找出裝置的 UUID 喔！ 什麼是 UUID 呢？UUID 是全域單一識別碼 (universally unique identifier)，Linux 會將系統內所有的裝置都給予一個獨一無二的識別碼， 這個識別碼就可以拿來作為掛載或者是使用這個裝置/檔案系統之用了。
+```
+root@ubuntu:/home/kevin/os# blkid
+/dev/loop0: TYPE="squashfs"
+/dev/loop1: TYPE="squashfs"
+/dev/loop2: TYPE="squashfs"
+/dev/loop3: TYPE="squashfs"
+/dev/loop4: TYPE="squashfs"
+/dev/loop5: TYPE="squashfs"
+/dev/loop6: TYPE="squashfs"
+/dev/loop7: TYPE="squashfs"
+/dev/sda1: UUID="b16bcca1-6f61-4f98-883d-08da92739870" TYPE="ext4" PARTUUID="7c65c297-01"
+/dev/loop8: TYPE="squashfs"
+/dev/loop9: TYPE="squashfs"
+/dev/loop10: TYPE="squashfs"
+/dev/loop11: TYPE="squashfs"
+/dev/loop12: TYPE="squashfs"
+/dev/loop13: TYPE="squashfs"
+/dev/loop14: TYPE="squashfs"
+/dev/loop15: TYPE="squashfs"
+/dev/loop16: TYPE="squashfs"
+/dev/loop17: TYPE="squashfs"
+/dev/loop18: TYPE="squashfs"
+/dev/loop19: TYPE="squashfs"
+/dev/loop20: TYPE="squashfs"
+/dev/loop21: TYPE="squashfs"
+/dev/loop22: TYPE="squashfs"
+/dev/loop23: TYPE="squashfs"
+/dev/loop24: TYPE="squashfs"
+/dev/loop25: TYPE="squashfs"
+/dev/loop26: TYPE="squashfs"
+```
+如上所示，每一行代表一個檔案系統，主要列出裝置名稱、UUID 名稱以及檔案系統的類型 (TYPE)！這對於管理員來說，相當有幫助！ 對於系統上面的檔案系統觀察來說，真是一目了然！
+
+#### parted 列出磁碟的分割表類型與分割資訊
+雖然我們已經知道了系統上面的所有裝置，並且透過 blkid 也知道了所有的檔案系統！不過，還是不清楚磁碟的分割類型。 這時我們可以透過簡單的 parted 來輸出喔！我們這裡僅簡單的利用他的輸出而已～本章最後才會詳細介紹這個指令的用法的！
+```
+[root@study ~]# parted device_name print
+
+範例一：列出 /dev/sda 磁碟的相關資料
+kevin@ubuntu:~/os$ sudo parted /dev/sda print 
+[sudo] password for kevin: 
+Model: VMware, VMware Virtual S (scsi)
+Disk /dev/sda: 53.7GB
+Sector size (logical/physical): 512B/512B
+Partition Table: msdos
+Disk Flags: 
+
+Number  Start   End     Size    Type     File system  Flags
+ 1      1049kB  53.7GB  53.7GB  primary  ext4         boot
+```
+分割模式：msdos-MBR
+
+### 7.3.2 磁碟分割： gdisk/fdisk
+接下來我們想要進行磁碟分割囉！要注意的是：**『MBR 分割表請使用 fdisk 分割， GPT 分割表請使用 gdisk 分割！』** 這個不要搞錯～否則會分割失敗的！另外，這兩個工具軟體的操作很類似，執行了該軟體後，可以透過該軟體內部的說明資料來操作， 因此不需要硬背！只要知道方法即可。剛剛從上面 parted 的輸出結果，我們也知道鳥哥這個測試機使用的是 GPT 分割， 因此底下通通得要使用 gdisk 來分割才行！
+
+### 7.3.3 磁碟格式化(建置檔案系統)
+
+#### EXT4 檔案系統 mkfs.ext4
+如果想要格式化為 ext4 的傳統 Linux 檔案系統的話，可以使用 mkfs.ext4 這個指令即可！這個指令的參數快速的介紹一下！
+```
+[root@study ~]# mkfs.ext4 [-b size] [-L label] 裝置名稱
+選項與參數：
+-b  ：設定 block 的大小，有 1K, 2K, 4K 的容量，
+-L  ：後面接這個裝置的標頭名稱。
+```
+
+### 7.3.4 檔案系統檢驗
+由於系統在運作時誰也說不準啥時硬體或者是電源會有問題，所以『當機』可能是難免的情況(不管是硬體還是軟體)。 現在我們知道檔案系統運作時會有磁碟與記憶體資料非同步的狀況發生，因此莫名其妙的當機非常可能導致檔案系統的錯亂。 問題來啦，如果檔案系統真的發生錯亂的話，那該如何是好？就...挽救啊！不同的檔案系統救援的指令不太一樣，我們主要針對 xfs 及 ext4 這兩個主流來說明而已喔！
+#### fsck.ext4 處理 EXT4 檔案系統
+fsck 是個綜合指令，如果是針對 ext4 的話，建議直接使用 fsck.ext4 來檢測比較妥當！那 fsck.ext4 的選項有底下幾個常見的項目：
+```
+[root@study ~]# fsck.ext4 [-pf] [-b superblock] 裝置名稱
+選項與參數：
+-p  ：當檔案系統在修復時，若有需要回覆 y 的動作時，自動回覆 y 來繼續進行修復動作。
+-f  ：強制檢查！一般來說，如果 fsck 沒有發現任何 unclean 的旗標，不會主動進入
+      細部檢查的，如果您想要強制 fsck 進入細部檢查，就得加上 -f 旗標囉！
+-D  ：針對檔案系統下的目錄進行最佳化配置。
+-b  ：後面接 superblock 的位置！一般來說這個選項用不到。但是如果你的 superblock 因故損毀時，
+      透過這個參數即可利用檔案系統內備份的 superblock 來嘗試救援。一般來說，superblock 備份在：
+      1K block 放在 8193, 2K block 放在 16384, 4K block 放在 32768
+
+範例：找出剛剛建置的 /dev/vda5 的另一塊 superblock，並據以檢測系統
+[root@study ~]# dumpe2fs -h /dev/vda5 | grep 'Blocks per group'
+Blocks per group:         32768
+# 看起來每個 block 群組會有 32768 個 block，因此第二個 superblock 應該就在 32768 上！
+# 因為 block 號碼為 0 號開始編的！
+
+[root@study ~]# fsck.ext4 -b 32768 /dev/vda5
+e2fsck 1.42.9 (28-Dec-2013)
+/dev/vda5 was not cleanly unmounted, check forced.
+Pass 1: Checking inodes, blocks, and sizes
+Deleted inode 1577 has zero dtime.  Fix<y>? yes
+Pass 2: Checking directory structure
+Pass 3: Checking directory connectivity
+Pass 4: Checking reference counts
+Pass 5: Checking group summary information
+
+/dev/vda5: ***** FILE SYSTEM WAS MODIFIED *****  # 檔案系統被改過，所以這裡會有警告！
+/dev/vda5: 11/65536 files (0.0% non-contiguous), 12955/262144 blocks
+# 好巧合！鳥哥使用這個方式來檢驗系統，恰好遇到檔案系統出問題！於是可以有比較多的解釋方向！
+# 當檔案系統出問題，它就會要你選擇是否修復～如果修復如上所示，按下 y 即可！
+# 最終系統會告訴你，檔案系統已經被更改過，要注意該項目的意思！
+
+範例：已預設設定強制檢查一次 /dev/vda5
+[root@study ~]# fsck.ext4 /dev/vda5
+e2fsck 1.42.9 (28-Dec-2013)
+/dev/vda5: clean, 11/65536 files, 12955/262144 blocks
+# 檔案系統狀態正常，它並不會進入強制檢查！會告訴你檔案系統沒問題 (clean)
+
+[root@study ~]# fsck.ext4 -f /dev/vda5
+e2fsck 1.42.9 (28-Dec-2013)
+Pass 1: Checking inodes, blocks, and sizes
+....(底下省略)....
+```
+無論是 xfs_repair 或 fsck.ext4，這都是用來檢查與修正檔案系統錯誤的指令。注意：通常只有身為 root 且你的檔案系統有問題的時候才使用這個指令，否則在正常狀況下使用此一指令， 可能會造成對系統的危害！通常使用這個指令的場合都是在系統出現極大的問題，導致你在 Linux 開機的時候得進入單人單機模式下進行維護的行為時，才必須使用此一指令！
+
+所以『執行 xfs_repair/fsck.ext4 時， 被檢查的 partition 務必不可掛載到系統上！亦即是需要在卸載的狀態喔！』
+
+### 7.3.5 檔案系統掛載與卸載
+
+我們在本章一開始時的掛載點的意義當中提過掛載點是目錄， 而這個目錄是進入磁碟分割槽(其實是檔案系統啦！)的入口就是了。不過要進行掛載前，你最好先確定幾件事：
+- 單一檔案系統不應該被重複掛載在不同的掛載點(目錄)中；
+- 單一目錄不應該重複掛載多個檔案系統；
+- 要作為掛載點的目錄，理論上應該都是空目錄才是。
