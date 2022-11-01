@@ -2589,3 +2589,293 @@ Pass 1: Checking inodes, blocks, and sizes
 - 單一檔案系統不應該被重複掛載在不同的掛載點(目錄)中；
 - 單一目錄不應該重複掛載多個檔案系統；
 - 要作為掛載點的目錄，理論上應該都是空目錄才是。
+
+尤其是上述的後兩點！**如果你要用來掛載的目錄裡面並不是空的，那麼掛載了檔案系統之後，原目錄下的東西就會暫時的消失**。 舉個例子來說，假設你的 /home 原本與根目錄 (/) 在同一個檔案系統中，底下原本就有 /home/test 與 /home/vbird 兩個目錄。然後你想要加入新的磁碟，並且直接掛載 /home 底下，那麼當你掛載上新的分割槽時，則 /home 目錄顯示的是新分割槽內的資料，至於原先的 test 與 vbird 這兩個目錄就會暫時的被隱藏掉了！**注意喔！並不是被覆蓋掉， 而是暫時的隱藏了起來，等到新分割槽被卸載之後，則 /home 原本的內容就會再次的跑出來啦**！而要將檔案系統掛載到我們的 Linux 系統上，就要使用 mount 這個指令啦！ 不過，這個指令真的是博大精深～粉難啦！我們學簡單一點啊～ ^_^
+
+```
+[root@study ~]# mount -a
+[root@study ~]# mount [-l]
+[root@study ~]# mount [-t 檔案系統] LABEL=''  掛載點
+[root@study ~]# mount [-t 檔案系統] UUID=''   掛載點  # 鳥哥近期建議用這種方式喔！
+[root@study ~]# mount [-t 檔案系統] 裝置檔名  掛載點
+選項與參數：
+-a  ：依照設定檔 /etc/fstab 的資料將所有未掛載的磁碟都掛載上來
+-l  ：單純的輸入 mount 會顯示目前掛載的資訊。加上 -l 可增列 Label 名稱！
+-t  ：可以加上檔案系統種類來指定欲掛載的類型。常見的 Linux 支援類型有：xfs, ext3, ext4,
+      reiserfs, vfat, iso9660(光碟格式), nfs, cifs, smbfs (後三種為網路檔案系統類型)
+-n  ：在預設的情況下，系統會將實際掛載的情況即時寫入 /etc/mtab 中，以利其他程式的運作。
+      但在某些情況下(例如單人維護模式)為了避免問題會刻意不寫入。此時就得要使用 -n 選項。
+-o  ：後面可以接一些掛載時額外加上的參數！比方說帳號、密碼、讀寫權限等：
+      async, sync:   此檔案系統是否使用同步寫入 (sync) 或非同步 (async) 的
+                     記憶體機制，請參考檔案系統運作方式。預設為 async。
+      atime,noatime: 是否修訂檔案的讀取時間(atime)。為了效能，某些時刻可使用 noatime
+      ro, rw:        掛載檔案系統成為唯讀(ro) 或可讀寫(rw)
+      auto, noauto:  允許此 filesystem 被以 mount -a 自動掛載(auto)
+      dev, nodev:    是否允許此 filesystem 上，可建立裝置檔案？ dev 為可允許
+      suid, nosuid:  是否允許此 filesystem 含有 suid/sgid 的檔案格式？
+      exec, noexec:  是否允許此 filesystem 上擁有可執行 binary 檔案？
+      user, nouser:  是否允許此 filesystem 讓任何使用者執行 mount ？一般來說，
+                     mount 僅有 root 可以進行，但下達 user 參數，則可讓
+                     一般 user 也能夠對此 partition 進行 mount 。
+      defaults:      預設值為：rw, suid, dev, exec, auto, nouser, and async
+      remount:       重新掛載，這在系統出錯，或重新更新參數時，很有用！
+```
+由於檔案系統幾乎都有 superblock ，我們的 Linux 可以透過分析 superblock 搭配 Linux 自己的驅動程式去測試掛載， 如果成功的套和了，就立刻自動的使用該類型的檔案系統掛載起來啊！那麼系統有沒有指定哪些類型的 filesystem 才需要進行上述的掛載測試呢？ 主要是參考底下這兩個檔案：
+- /etc/filesystems：系統指定的測試掛載檔案系統類型的優先順序；
+- /proc/filesystems：Linux系統已經載入的檔案系統類型。
+
+那我怎麼知道我的 Linux 有沒有相關檔案系統類型的驅動程式呢？我們 Linux 支援的檔案系統之驅動程式都寫在如下的目錄中：
+- /lib/modules/$(uname -r)/kernel/fs/
+
+另外，過去我們都習慣使用裝置檔名然後直接用該檔名掛載， 不過近期以來鳥哥比較建議使用 UUID 來識別檔案系統，會比裝置名稱與標頭名稱還要更可靠！因為是獨一無二的啊！
+
+#### 挂载usb设备（fat32）
+```
+kevin@ubuntu:~$ mkdir -p /media/kevin/test
+mkdir: cannot create directory ‘/media/kevin/test’: Permission denied
+kevin@ubuntu:~$ sudo mkdir -p /media/kevin/test
+kevin@ubuntu:~$ ls /media/kevin/
+test
+kevin@ubuntu:~$ mount /dev/sdb1 /media/kevin/test
+mount: only root can do that
+kevin@ubuntu:~$ sudo mount /dev/sdb1 /media/kevin/test
+kevin@ubuntu:~$ cd /media/kevin/test/
+kevin@ubuntu:/media/kevin/test$ ls
+'System Volume Information'
+kevin@ubuntu:/media/kevin/test$ mkdir -p /test/test1
+mkdir: cannot create directory ‘/test’: Permission denied
+kevin@ubuntu:/media/kevin/test$ ls
+'System Volume Information'
+kevin@ubuntu:/media/kevin/test$ df /media/kevin/
+Filesystem     1K-blocks     Used Available Use% Mounted on
+/dev/sda1       51420796 31077356  17915496  64% /
+kevin@ubuntu:/media/kevin/test$ lsblk
+NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+loop0    7:0    0 414.4M  1 loop /snap/gnome-42-2204/29
+loop1    7:1    0   4.2M  1 loop /snap/gnome-calculator/544
+loop2    7:2    0   1.5M  1 loop /snap/gnome-system-monitor/181
+loop3    7:3    0  65.2M  1 loop /snap/gtk-common-themes/1519
+loop4    7:4    0   219M  1 loop /snap/gnome-3-34-1804/77
+loop5    7:5    0 254.9M  1 loop /snap/clash/1476
+loop6    7:6    0   114M  1 loop /snap/core/13425
+loop7    7:7    0   556K  1 loop /snap/gnome-logs/112
+loop8    7:8    0   115M  1 loop /snap/core/13886
+loop9    7:9    0 346.3M  1 loop /snap/gnome-3-38-2004/119
+loop10   7:10   0   476K  1 loop /snap/gnome-characters/781
+loop11   7:11   0  63.2M  1 loop /snap/core20/1623
+loop12   7:12   0   696K  1 loop /snap/gnome-logs/115
+loop13   7:13   0  91.7M  1 loop /snap/gtk-common-themes/1535
+loop14   7:14   0  61.9M  1 loop /snap/core20/1518
+loop15   7:15   0 346.3M  1 loop /snap/gnome-3-38-2004/115
+loop16   7:16   0   4.2M  1 loop /snap/tree/18
+loop17   7:17   0     4K  1 loop /snap/bare/5
+loop18   7:18   0  55.6M  1 loop /snap/core18/2566
+loop19   7:19   0  72.8M  1 loop /snap/core22/310
+loop20   7:20   0   2.6M  1 loop /snap/gnome-system-monitor/178
+loop21   7:21   0 160.2M  1 loop /snap/gnome-3-28-1804/116
+loop22   7:22   0   2.6M  1 loop /snap/gnome-calculator/920
+loop23   7:23   0  70.4M  1 loop /snap/core22/275
+loop24   7:24   0 164.8M  1 loop /snap/gnome-3-28-1804/161
+loop25   7:25   0   704K  1 loop /snap/gnome-characters/741
+loop26   7:26   0  55.5M  1 loop /snap/core18/2409
+sda      8:0    0    50G  0 disk 
+└─sda1   8:1    0    50G  0 part /
+sdb      8:16   1  28.9G  0 disk 
+└─sdb1   8:17   1  28.9G  0 part /media/kevin/test
+sr0     11:0    1  1024M  0 rom  
+kevin@ubuntu:/media/kevin/test$ df /media/kevin/test/
+Filesystem     1K-blocks  Used Available Use% Mounted on
+/dev/sdb1       30253024    64  30252960   1% /media/kevin/test
+kevin@ubuntu:/media/kevin/test$ ls
+'System Volume Information'
+kevin@ubuntu:/media/kevin/test$ sudo nano test.txt
+kevin@ubuntu:/media/kevin/test$ cat test.txt 
+hello world
+kevin@ubuntu:/media/kevin/test$ umount /dev/sdb1
+umount: /media/kevin/test: umount failed: Operation not permitted.
+kevin@ubuntu:/media/kevin/test$ sudo umount /dev/sdb1
+umount: /media/kevin/test: target is busy.
+kevin@ubuntu:/media/kevin/test$ cd ~
+kevin@ubuntu:~$ sudo umount /dev/sdb1
+```
+
+#### umount (將裝置檔案卸載)
+```
+[root@study ~]# umount [-fn] 裝置檔名或掛載點
+選項與參數：
+-f  ：強制卸載！可用在類似網路檔案系統 (NFS) 無法讀取到的情況下；
+-l  ：立刻卸載檔案系統，比 -f 還強！
+-n  ：不更新 /etc/mtab 情況下卸載。
+
+範例：
+kevin@ubuntu:/$ mount 
+sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime)
+proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)
+udev on /dev type devtmpfs (rw,nosuid,relatime,size=2743272k,nr_inodes=685818,mode=755)
+devpts on /dev/pts type devpts (rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000)
+tmpfs on /run type tmpfs (rw,nosuid,noexec,relatime,size=553688k,mode=755)
+/dev/sda1 on / type ext4 (rw,relatime,errors=remount-ro)
+securityfs on /sys/kernel/security type securityfs (rw,nosuid,nodev,noexec,relatime)
+tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev)
+tmpfs on /run/lock type tmpfs (rw,nosuid,nodev,noexec,relatime,size=5120k)
+tmpfs on /sys/fs/cgroup type tmpfs (ro,nosuid,nodev,noexec,mode=755)
+cgroup on /sys/fs/cgroup/unified type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate)
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,name=systemd)
+pstore on /sys/fs/pstore type pstore (rw,nosuid,nodev,noexec,relatime)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
+systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=24,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=25151)
+hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime,pagesize=2M)
+debugfs on /sys/kernel/debug type debugfs (rw,relatime)
+mqueue on /dev/mqueue type mqueue (rw,relatime)
+/var/lib/snapd/snaps/gnome-42-2204_29.snap on /snap/gnome-42-2204/29 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-calculator_544.snap on /snap/gnome-calculator/544 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-system-monitor_181.snap on /snap/gnome-system-monitor/181 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gtk-common-themes_1519.snap on /snap/gtk-common-themes/1519 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-3-34-1804_77.snap on /snap/gnome-3-34-1804/77 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/clash_1476.snap on /snap/clash/1476 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core_13425.snap on /snap/core/13425 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-logs_112.snap on /snap/gnome-logs/112 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core_13886.snap on /snap/core/13886 type squashfs (ro,nodev,relatime,x-gdu.hide)
+fusectl on /sys/fs/fuse/connections type fusectl (rw,relatime)
+binfmt_misc on /proc/sys/fs/binfmt_misc type binfmt_misc (rw,relatime)
+configfs on /sys/kernel/config type configfs (rw,relatime)
+vmware-vmblock on /run/vmblock-fuse type fuse.vmware-vmblock (rw,relatime,user_id=0,group_id=0,default_permissions,allow_other)
+/var/lib/snapd/snaps/gnome-3-38-2004_119.snap on /snap/gnome-3-38-2004/119 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core20_1623.snap on /snap/core20/1623 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-logs_115.snap on /snap/gnome-logs/115 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-characters_781.snap on /snap/gnome-characters/781 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gtk-common-themes_1535.snap on /snap/gtk-common-themes/1535 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core20_1518.snap on /snap/core20/1518 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-3-38-2004_115.snap on /snap/gnome-3-38-2004/115 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/tree_18.snap on /snap/tree/18 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/bare_5.snap on /snap/bare/5 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core18_2566.snap on /snap/core18/2566 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core22_310.snap on /snap/core22/310 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-system-monitor_178.snap on /snap/gnome-system-monitor/178 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-3-28-1804_116.snap on /snap/gnome-3-28-1804/116 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-calculator_920.snap on /snap/gnome-calculator/920 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core22_275.snap on /snap/core22/275 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-characters_741.snap on /snap/gnome-characters/741 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/gnome-3-28-1804_161.snap on /snap/gnome-3-28-1804/161 type squashfs (ro,nodev,relatime,x-gdu.hide)
+/var/lib/snapd/snaps/core18_2409.snap on /snap/core18/2409 type squashfs (ro,nodev,relatime,x-gdu.hide)
+tmpfs on /run/user/121 type tmpfs (rw,nosuid,nodev,relatime,size=553684k,mode=700,uid=121,gid=125)
+tmpfs on /run/user/1000 type tmpfs (rw,nosuid,nodev,relatime,size=553684k,mode=700,uid=1000,gid=1000)
+gvfsd-fuse on /run/user/1000/gvfs type fuse.gvfsd-fuse (rw,nosuid,nodev,relatime,user_id=1000,group_id=1000)
+/dev/fuse on /run/user/1000/doc type fuse (rw,nosuid,nodev,relatime,user_id=1000,group_id=1000)
+tmpfs on /run/snapd/ns type tmpfs (rw,nosuid,noexec,relatime,size=553688k,mode=755)
+nsfs on /run/snapd/ns/tree.mnt type nsfs (rw)
+/dev/sdb1 on /media/kevin/KINGSTON type vfat (rw,nosuid,nodev,relatime,uid=1000,gid=1000,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,showexec,utf8,flush,errors=remount-ro,uhelper=udisks2)
+kevin@ubuntu:/$ umount /dev/sdb1
+# success umount KINGSTON usb device 
+```
+由於通通卸載了，此時你才可以退出光碟片、軟碟片、USB隨身碟等設備喔！如果你遇到這樣的情況：
+```
+[root@study ~]# mount /dev/sr0 /data/cdrom
+[root@study ~]# cd /data/cdrom
+[root@study cdrom]# umount /data/cdrom
+umount: /data/cdrom: target is busy.
+        (In some cases useful info about processes that use
+         the device is found by lsof(8) or fuser(1))
+
+[root@study cdrom]# cd /
+[root@study /]# umount /data/cdrom
+```
+由於你目前正在 /data/cdrom/ 的目錄內，也就是說其實『你正在使用該檔案系統』的意思！所以自然無法卸載這個裝置！那該如何是好？就『離開該檔案系統的掛載點』即可。以上述的案例來說， 你可以使用『 cd / 』回到根目錄，就能夠卸載 /data/cdrom 囉！簡單吧！
+
+#### 重新掛載根目錄與掛載不特定目錄
+整個目錄樹最重要的地方就是根目錄了，所以根目錄根本就不能夠被卸載的！問題是，如果你的掛載參數要改變， 或者是根目錄出現『唯讀』狀態時，如何重新掛載呢？最可能的處理方式就是重新開機 (reboot)！ 不過你也可以這樣做：
+```
+範例：將 / 重新掛載，並加入參數為 rw 與 auto
+[root@study ~]# mount -o remount,rw,auto /
+```
+重點是那個『 -o remount,xx 』的選項與參數！請注意，要重新掛載 (remount) 時， 這是個非常重要的機制！尤其是當你進入單人維護模式時，你的根目錄常會被系統掛載為唯讀，這個時候這個指令就太重要了！
+
+另外，我們也可以利用 mount 來將某個目錄掛載到另外一個目錄去喔！這並不是掛載檔案系統，而是額外掛載某個目錄的方法！ 雖然底下的方法也可以使用 symbolic link 來連結，不過在某些不支援符號連結的程式運作中，還是得要透過這樣的方法才行。
+```
+範例：將 /var 這個目錄暫時掛載到 /data/var 底下：
+[root@study ~]# mkdir /data/var
+[root@study ~]# mount --bind /var /data/var
+[root@study ~]# ls -lid /var /data/var
+16777346 drwxr-xr-x. 22 root root 4096 Jun 15 23:43 /data/var
+16777346 drwxr-xr-x. 22 root root 4096 Jun 15 23:43 /var
+# 內容完全一模一樣啊！因為掛載目錄的緣故！
+
+[root@study ~]# mount | grep var
+/dev/mapper/centos-root on /data/var type xfs (rw,relatime,seclabel,attr2,inode64,noquota)
+```
+看起來，其實兩者連結到同一個 inode 嘛！ ^_^ 沒錯啦！**透過這個 mount --bind 的功能， 您可以將某個目錄掛載到其他目錄去喔！而並不是整塊 filesystem 的啦！所以從此進入 /data/var 就是進入 /var 的意思喔**！
+### 7.3.6 磁碟/檔案系統參數修訂
+某些時刻，你可能會希望修改一下目前檔案系統的一些相關資訊，舉例來說，你可能要修改 Label name ， 或者是 journal 的參數，或者是其他磁碟/檔案系統運作時的相關參數 (例如 DMA 啟動與否～)。 這個時候，就得需要底下這些相關的指令功能囉～
+
+#### mknod
+還記得我們說過，在 Linux 底下所有的裝置都以檔案來代表吧！**但是那個檔案如何代表該裝置呢？ 很簡單！就是透過檔案的 major 與 minor 數值來替代的**～所以，那個 major 與 minor 數值是有特殊意義的，不是隨意設定的喔！我們在 lsblk 指令的用法裡面也談過這兩個數值呢！舉例來說，在鳥哥的這個測試機當中， 那個用到的磁碟 /dev/sda 的相關裝置代碼如下：
+```
+kevin@ubuntu:~/os$ ll /dev/sda
+brw-rw---- 1 root disk 8, 0 Nov  1 12:07 /dev/sda
+```
+上表當中 8 為主要裝置代碼 (Major) 而 0 則為次要裝置代碼 (Minor)。 我們的 Linux 核心認識的裝置資料就是透過這兩個數值來決定的！舉例來說，常見的磁碟檔名 /dev/sda 與 /dev/loop0 裝置代碼如下所示：
+<div align=center><img src="/os_note/linux_file/picture/屏幕截图%202022-11-01%20192201.png"></div>
+Linux 核心 2.6 版以後，硬體檔名已經都可以被系統自動的即時產生了，我們根本不需要手動建立裝置檔案。 不過某些情況底下我們可能還是得要手動處理裝置檔案的，例如在某些服務被關到特定目錄下時(chroot)， 就需要這樣做了。此時這個 mknod 就得要知道如何操作才行！
+```
+[root@study ~]# mknod 裝置檔名 [bcp] [Major] [Minor]
+選項與參數：
+裝置種類：
+   b  ：設定裝置名稱成為一個周邊儲存設備檔案，例如磁碟等；
+   c  ：設定裝置名稱成為一個周邊輸入設備檔案，例如滑鼠/鍵盤等；
+   p  ：設定裝置名稱成為一個 FIFO 檔案；
+Major ：主要裝置代碼；
+Minor ：次要裝置代碼；
+
+範例：由上述的介紹我們知道 /dev/vda10 裝置代碼 252, 10，請建立並查閱此裝置
+[root@study ~]# mknod /dev/vda10 b 252 10
+[root@study ~]# ll /dev/vda10
+brw-r--r--. 1 root root 252, 10 Jun 24 23:40 /dev/vda10
+# 上面那個 252 與 10 是有意義的，不要隨意設定啊！
+
+範例：建立一個 FIFO 檔案，檔名為 /tmp/testpipe
+[root@study ~]# mknod /tmp/testpipe p
+[root@study ~]# ll /tmp/testpipe
+prw-r--r--. 1 root root 0 Jun 24 23:44 /tmp/testpipe
+# 注意啊！這個檔案可不是一般檔案，不可以隨便就放在這裡！
+# 測試完畢之後請刪除這個檔案吧！看一下這個檔案的類型！是 p 喔！^_^
+
+[root@study ~]# rm /dev/vda10 /tmp/testpipe
+rm: remove block special file '/dev/vda10' ? y
+rm: remove fifo '/tmp/testpipe' ? y
+```
+**test for myself**
+```
+kevin@ubuntu:~/os$ sudo mknod /tmp/testpipe p
+[sudo] password for kevin: 
+kevin@ubuntu:~/os$ ll /tmp/testpipe 
+prw-r--r-- 1 root root 0 Nov  1 19:29 /tmp/testpipe|
+```
+#### tune2fs 修改 ext4 的 label name 與 UUID
+```
+[root@study ~]# tune2fs [-l] [-L Label] [-U uuid] 裝置檔名
+選項與參數：
+-l  ：類似 dumpe2fs -h 的功能～將 superblock 內的資料讀出來～
+-L  ：修改 LABEL name
+-U  ：修改 UUID 囉！
+
+範例：列出 /dev/vda5 的 label name 之後，將它改成 vbird_ext4
+[root@study ~]# dumpe2fs -h /dev/vda5 | grep name
+dumpe2fs 1.42.9 (28-Dec-2013)
+Filesystem volume name:   <none>   # 果然是沒有設定的！
+
+[root@study ~]# tune2fs -L vbird_ext4 /dev/vda5
+[root@study ~]# dumpe2fs -h /dev/vda5 | grep name
+Filesystem volume name:   vbird_ext4
+[root@study ~]# mount LABEL=vbird_ext4 /data/ext4
+```
+
