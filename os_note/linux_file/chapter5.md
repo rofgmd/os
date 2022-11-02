@@ -2879,3 +2879,66 @@ Filesystem volume name:   vbird_ext4
 [root@study ~]# mount LABEL=vbird_ext4 /data/ext4
 ```
 
+## 7.4 設定開機掛載
+
+### 7.4.1 開機掛載 /etc/fstab 及 /etc/mtab
+剛剛上面說了許多，那麼可不可以在開機的時候就將我要的檔案系統都掛好呢？這樣我就不需要每次進入 Linux 系統都還要在掛載一次呀！當然可以囉！那就直接到 **/etc/fstab** 裡面去修修就行囉！不過，在開始說明前，這裡要先跟大家說一說系統掛載的一些限制：
+
+- 根目錄 / 是必須掛載的﹐而且一定要先於其它 mount point 被掛載進來。
+- 其它 mount point 必須為已建立的目錄﹐可任意指定﹐但一定要遵守必須的系統目錄架構原則 (FHS)
+- 所有 mount point 在同一時間之內﹐只能掛載一次。
+- 所有 partition 在同一時間之內﹐只能掛載一
+- 如若進行卸載﹐您必須先將工作目錄移到 mount point(及其子目錄) 之外。
+
+```
+kevin@ubuntu:~/os$ cat /etc/fstab
+# /etc/fstab: static file system information.
+#
+# Use 'blkid' to print the universally unique identifier for a
+# device; this may be used with UUID= as a more robust way to name devices
+# that works even if disks are added and removed. See fstab(5).
+#
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+# / was on /dev/sda1 during installation
+UUID=b16bcca1-6f61-4f98-883d-08da92739870 /               ext4    errors=remount-ro 0       1
+/swapfile                                 none            swap    sw              0       0
+/dev/fd0        /media/floppy0  auto    rw,user,noauto,exec,utf8 0       0
+```
+各個欄位的總結資料與詳細資料如下：
+```
+[裝置/UUID等]  [掛載點]  [檔案系統]  [檔案系統參數]  [dump]  [fsck]
+```
+第一欄：磁碟裝置檔名/UUID/LABEL name：這個欄位可以填寫的資料主要有三個項目：
+
+- 檔案系統或磁碟的裝置檔名，如 /dev/vda2 等
+- 檔案系統的 UUID 名稱，如 UUID=xxx
+- 檔案系統的 LABEL 名稱，例如 LABEL=xxx
+
+因為每個檔案系統都可以有上面三個項目，所以你喜歡哪個項目就填哪個項目！無所謂的！只是從鳥哥測試機的 /etc/fstab 裡面看到的，在掛載點 /boot 使用的已經是 UUID 了喔！那你會說不是還有多個寫 /dev/mapper/xxx 的嗎？怎麼回事啊？ 因為那個是 LVM 啊！LVM 的檔名在你的系統中也算是獨一無二的，這部份我們在後續章節再來談。 不過，如果為了一致性，你還是可以將他改成 UUID 也沒問題喔！(鳥哥還是比較建議使用 UUID 喔！) 要記得使用 blkid 或 xfs_admin 來查詢 UUID 喔！
+
+第二欄：掛載點 (mount point)：：
+就是掛載點啊！掛載點是什麼？一定是目錄啊～要知道啊！忘記的話，請回本章稍早之前的資料瞧瞧喔！
+
+第三欄：磁碟分割槽的檔案系統：
+在手動掛載時可以讓系統自動測試掛載，但在這個檔案當中我們必須要手動寫入檔案系統才行！ 包括 xfs, ext4, vfat, reiserfs, nfs 等等。
+
+第四欄：檔案系統參數：
+記不記得我們在 mount 這個指令中談到很多特殊的檔案系統參數？ 還有我們使用過的『-o codepage=950』？這些特殊的參數就是寫入在這個欄位啦！ 雖然之前在 mount 已經提過一次，這裡我們利用表格的方式再彙整一下：
+
+|參數|	內容意義|
+|  ----  | ----  |
+|async/sync   非同步/同步	|設定磁碟是否以非同步方式運作！預設為 async(效能較佳)
+|auto/noauto自動/非自動	|當下達 mount -a 時，此檔案系統是否會被主動測試掛載。預設為 auto。|
+|rw/ro可讀寫/唯讀	|讓該分割槽以可讀寫或者是唯讀的型態掛載上來，如果你想要分享的資料是不給使用者隨意變更的， 這裡也能夠設定為唯讀。則不論在此檔案系統的檔案是否設定 w 權限，都無法寫入喔！
+|exec/noexec可執行/不可執行	|限制在此檔案系統內是否可以進行『執行』的工作？如果是純粹用來儲存資料的目錄， 那麼可以設定為 noexec 會比較安全。不過，這個參數也不能隨便使用，因為你不知道該目錄下是否預設會有執行檔。舉例來說，如果你將 noexec 設定在 /var ，當某些軟體將一些執行檔放置於 /var 下時，那就會產生很大的問題喔！ 因此，建議這個 noexec 最多僅設定於你自訂或分享的一般資料目錄。
+|user/nouser允許/不允許使用者掛載	|是否允許使用者使用 mount 指令來掛載呢？一般而言，我們當然不希望一般身份的 user 能使用 mount 囉，因為太不安全了，因此這裡應該要設定為 nouser 囉！|
+|suid/nosuid具有/不具有 suid 權限	|該檔案系統是否允許 SUID 的存在？如果不是執行檔放置目錄，也可以設定為 nosuid 來取消這個功能！
+|defaults	|同時具有 rw, suid, dev, exec, auto, nouser, async 等參數。 基本上，預設情況使用 defaults 設定即可！
+
+第五欄：能否被 dump 備份指令作用：
+dump 是一個用來做為備份的指令，不過現在有太多的備份方案了，所以這個項目可以不要理會啦！直接輸入 0 就好了！
+
+第六欄：是否以 fsck 檢驗磁區：
+早期開機的流程中，會有一段時間去檢驗本機的檔案系統，看看檔案系統是否完整 (clean)。 不過這個方式使用的主要是透過 fsck 去做的，我們現在用的 xfs 檔案系統就沒有辦法適用，因為 xfs 會自己進行檢驗，不需要額外進行這個動作！所以直接填 0 就好了。
+
+### 7.4.2 特殊裝置 loop 掛載 (映象檔不燒錄就掛載使用)
