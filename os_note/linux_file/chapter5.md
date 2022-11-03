@@ -2942,3 +2942,213 @@ dump 是一個用來做為備份的指令，不過現在有太多的備份方案
 早期開機的流程中，會有一段時間去檢驗本機的檔案系統，看看檔案系統是否完整 (clean)。 不過這個方式使用的主要是透過 fsck 去做的，我們現在用的 xfs 檔案系統就沒有辦法適用，因為 xfs 會自己進行檢驗，不需要額外進行這個動作！所以直接填 0 就好了。
 
 ### 7.4.2 特殊裝置 loop 掛載 (映象檔不燒錄就掛載使用)
+如果有光碟映像檔，或者是使用檔案作為磁碟的方式時，那就得要使用特別的方法來將他掛載起來，不需要燒錄啦！
+#### 掛載光碟/DVD映象檔
+下載了 Linux 或者是其他所需光碟/DVD的映象檔後， 難道一定需要燒錄成為光碟才能夠使用該檔案裡面的資料嗎？當然不是啦！我們可以透過 loop 裝置來掛載的！
+
+那要如何掛載呢？鳥哥將整個 CentOS 7.x 的 DVD 映象檔捉到測試機上面，然後利用這個檔案來掛載給大家參考看看囉！
+```
+[root@study ~]# ll -h /tmp/CentOS-7.0-1406-x86_64-DVD.iso
+-rw-r--r--. 1 root root 3.9G Jul  7  2014 /tmp/CentOS-7.0-1406-x86_64-DVD.iso
+# 看到上面的結果吧！這個檔案就是映象檔，檔案非常的大吧！
+
+[root@study ~]# mkdir /data/centos_dvd
+[root@study ~]# mount -o loop /tmp/CentOS-7.0-1406-x86_64-DVD.iso /data/centos_dvd
+[root@study ~]# df /data/centos_dvd
+Filesystem     1K-blocks    Used Available Use% Mounted on
+/dev/loop0       4050860 4050860         0 100% /data/centos_dvd
+# 就是這個項目！ .iso 映象檔內的所有資料可以在 /data/centos_dvd 看到！
+
+[root@study ~]# ll /data/centos_dvd
+total 607
+-rw-r--r--. 1  500  502     14 Jul  5  2014 CentOS_BuildTag <==瞧！就是DVD的內容啊！
+drwxr-xr-x. 3  500  502   2048 Jul  4  2014 EFI
+-rw-r--r--. 1  500  502    611 Jul  5  2014 EULA
+-rw-r--r--. 1  500  502  18009 Jul  5  2014 GPL
+drwxr-xr-x. 3  500  502   2048 Jul  4  2014 images
+.....(底下省略).....
+
+[root@study ~]# umount /data/centos_dvd/
+# 測試完成！記得將資料給他卸載！同時這個映像檔也被鳥哥刪除了...測試機容量不夠大！
+```
+非常方便吧！如此一來我們不需要將這個檔案燒錄成為光碟或者是 DVD 就能夠讀取內部的資料了！ 換句話說，你也可以在這個檔案內『動手腳』去修改檔案的！這也是為什麼很多映象檔提供後，還得要提供驗證碼 (MD5) 給使用者確認該映象檔沒有問題！
+
+#### 建立大檔案以製作 loop 裝置檔案！
+想一想，既然能夠掛載 DVD 的映象檔，那麼我能不能製作出一個大檔案，然後將這個檔案格式化後掛載呢？ 好問題！這是個有趣的動作！而且還能夠幫助我們解決很多系統的分割不良的情況呢！舉例來說，如果當初在分割時， 你只有分割出一個根目錄，假設你已經沒有多餘的容量可以進行額外的分割的！偏偏根目錄的容量還很大！ 此時你就能夠製作出一個大檔案，然後將這個檔案掛載！如此一來感覺上你就多了一個分割槽囉！用途非常的廣泛啦！
+底下我們在 /srv 下建立一個 512MB 左右的大檔案，然後將這個大檔案格式化並且實際掛載來玩一玩！ 這樣你會比較清楚鳥哥在講啥！
+
+- 建立大型檔案
+
+首先，我們得先有一個大的檔案吧！怎麼建立這個大檔案呢？在 Linux 底下我們有一支很好用的程式 dd ！他可以用來建立空的檔案喔！詳細的說明請先翻到下一章 壓縮指令的運用 來查閱，這裡鳥哥僅作一個簡單的範例而已。 假設我要建立一個空的檔案在 /srv/loopdev ，那可以這樣做：
+```
+kevin@ubuntu:~/os$ sudo dd if=/dev/zero of=/srv/loopdev bs=1M count=512
+[sudo] password for kevin: 
+512+0 records in
+512+0 records out
+536870912 bytes (537 MB, 512 MiB) copied, 1.67879 s, 320 MB/s
+# 這個指令的簡單意義如下：
+# if    是 input file ，輸入檔案。那個 /dev/zero 是會一直輸出 0 的裝置！
+# of    是 output file ，將一堆零寫入到後面接的檔案中。
+# bs    是每個 block 大小，就像檔案系統那樣的 block 意義；
+# count 則是總共幾個 bs 的意思。所以 bs*count 就是這個檔案的容量了！
+kevin@ubuntu:~/os$ ll -h /srv/loopdev 
+-rw-r--r-- 1 root root 512M Nov  3 15:08 /srv/loopdev
+```
+dd 就好像在疊磚塊一樣，將 512 塊，每塊 1MB 的磚塊堆疊成為一個大檔案 (/srv/loopdev) ！ 最終就會出現一個 512MB 的檔案！粉簡單吧！
+- 大型檔案的格式化
+
+預設 xfs 不能夠格式化檔案的，所以要格式化檔案得要加入特別的參數才行喔！讓我們來瞧瞧！
+
+```
+kevin@ubuntu:~/os$ sudo mkfs.xfs -f /srv/loopdev
+[sudo] password for kevin: 
+meta-data=/srv/loopdev           isize=512    agcount=4, agsize=32768 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=0, rmapbt=0, reflink=0
+data     =                       bsize=4096   blocks=131072, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0 ftype=1
+log      =internal log           bsize=4096   blocks=855, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+kevin@ubuntu:~/os$ blkid /srv/loopdev
+/srv/loopdev: UUID="7b46df6c-aebc-473b-a4ea-0d029d0a1179" TYPE="xfs"
+```
+其實很簡單啦！所以鳥哥就不輸出格式化的結果了！要注意 UUID 的數值，未來會用到！
+
+- 掛載
+
+那要如何掛載啊？利用 mount 的特殊參數，那個 -o loop 的參數來處理！
+```
+root@ubuntu:/home/kevin/os# blkid /srv/loopdev
+/srv/loopdev: UUID="7b46df6c-aebc-473b-a4ea-0d029d0a1179" TYPE="xfs"
+root@ubuntu:/home/kevin/os# mount -o loop UUID="7b46df6c-aebc-473b-a4ea-0d029d0a1179" /mnt
+root@ubuntu:/home/kevin/os# df /mnt
+Filesystem     1K-blocks  Used Available Use% Mounted on
+/dev/loop27       520868 26976    493892   6% /mnt
+```
+透過這個簡單的方法，感覺上你就可以在原本的分割槽在不更動原有的環境下製作出你想要的分割槽就是了！ 這東西很好用的！尤其是想要玩 Linux 上面的『虛擬機器』的話， 也就是以一部 Linux 主機再切割成為數個獨立的主機系統時，類似 VMware 這類的軟體， 在 Linux 上使用 xen 這個軟體，他就可以配合這種 loop device 的檔案類型來進行根目錄的掛載，真的非常有用的喔！ ^_^
+
+比較特別的是，CentOS 7.x 越來越聰明了，現在你不需要下達 -o loop 這個選項與參數，它同樣可以被系統掛上來！ 連直接輸入 blkid 都會列出這個檔案內部的檔案系統耶！相當有趣！不過，為了考量向下相容性，鳥哥還是建議你加上 loop 比較妥當喔！ 現在，請將這個檔案系統永遠的自動掛載起來吧！
+
+```
+root@ubuntu:/home/kevin/os# df /mnt
+Filesystem     1K-blocks  Used Available Use% Mounted on
+/dev/loop27       520868 26976    493892   6% /mnt
+root@ubuntu:/home/kevin/os# nano /etc/fstab 
+root@ubuntu:/home/kevin/os# umount /mnt
+root@ubuntu:/home/kevin/os# mkdir -p /data/file
+root@ubuntu:/home/kevin/os# mount -a
+root@ubuntu:/home/kevin/os# df /data/file
+Filesystem     1K-blocks  Used Available Use% Mounted on
+/dev/loop27       520868 26976    493892   6% /data/file
+```
+
+## 7.5 記憶體置換空間(swap)之建置
+以前的年代因為記憶體不足，因此那個可以暫時將記憶體的程序拿到硬碟中暫放的記憶體置換空間 (swap) 就顯的非常的重要！ 否則，如果突然間某支程式用掉你大部分的記憶體，那你的系統恐怕有損毀的情況發生喔！所以，早期在安裝 Linux 之前，大家常常會告訴你： 安裝時一定需要的兩個 partition ，一個是根目錄，另外一個就是 swap(記憶體置換空間)。關於記憶體置換空間的解釋在第三章安裝 Linux 內的磁碟分割時有約略提過，請你自行回頭瞧瞧吧！
+
+一般來說，如果硬體的配備資源足夠的話，那麼 swap 應該不會被我們的系統所使用到， swap 會被利用到的時刻通常就是實體記憶體不足的情況了。從第零章的計算機概論當中，我們知道 CPU 所讀取的資料都來自於記憶體， 那當記憶體不足的時候，為了讓後續的程式可以順利的運作，因此在記憶體中暫不使用的程式與資料就會被挪到 swap 中了。 此時記憶體就會空出來給需要執行的程式載入。由於 swap 是用磁碟來暫時放置記憶體中的資訊，所以用到 swap 時，你的主機磁碟燈就會開始閃個不停啊！
+
+雖然目前(2015)主機的記憶體都很大，至少都有 4GB 以上囉！因此在個人使用上，你不要設定 swap 在你的 Linux 應該也沒有什麼太大的問題。 不過伺服器可就不這麼想了～由於你不會知道何時會有大量來自網路的要求，因此最好還是能夠預留一些 swap 來緩衝一下系統的記憶體用量！ 至少達到『備而不用』的地步啊！
+
+現在想像一個情況，你已經將系統建立起來了，此時卻才發現你沒有建置 swap ～那該如何是好呢？ 透過本章上面談到的方法，你可以使用如下的方式來建立你的 swap 囉！
+
+- 設定一個 swap partition
+- 建立一個虛擬記憶體的檔案
+
+
+不囉唆，就立刻來處理處理吧！
+
+### 7.5.1 使用實體分割槽建置swap
+建立 swap 分割槽的方式也是非常的簡單的！透過底下幾個步驟就搞定囉：
+
+1. 分割：先使用 gdisk 在你的磁碟中分割出一個分割槽給系統作為 swap 。由於 Linux 的 gdisk 預設會將分割槽的 ID 設定為 Linux 的檔案系統，所以你可能還得要設定一下 system ID 就是了。
+2. 格式化：利用建立 swap 格式的『mkswap 裝置檔名』就能夠格式化該分割槽成為 swap 格式囉
+3. 使用：最後將該 swap 裝置啟動，方法為：『swapon 裝置檔名』。
+4. 觀察：最終透過 free 與 swapon -s 這個指令來觀察一下記憶體的用量吧！
+
+不囉唆，立刻來實作看看！既然我們還有多餘的磁碟容量可以分割，那麼讓我們繼續分割出 512MB 的磁碟分割槽吧！ 然後將這個磁碟分割槽做成 swap 吧！
+
+- 3. 開始觀察與載入看看吧！
+```
+kevin@ubuntu:~/os$ free
+              total        used        free      shared  buff/cache   available
+Mem:        5536876     2029884      778368       27748     2728624     3219516
+Swap:       1459804           0     1459804
+kevin@ubuntu:~/os$ swapon -s 
+Filename                                Type            Size    Used    Priority
+/swapfile                               file            1459804 0       -2
+```
+
+### 7.5.2 使用檔案建置swap
+如果是在實體分割槽無法支援的環境下，此時前一小節提到的 loop 裝置建置方法就派的上用場啦！ 與實體分割槽不一樣的，這個方法只是利用 dd 去建置一個大檔案而已。多說無益，我們就再透過檔案建置的方法建立一個 128 MB 的記憶體置換空間吧！
+
+說實話，swap 在目前的桌上型電腦來講，存在的意義已經不大了！這是因為目前的 x86 主機所含的記憶體實在都太大了 (一般入門級至少也都有 4GB 了)，所以，我們的 Linux 系統大概都用不到 swap 這個玩意兒的。不過， 如果是針對伺服器或者是工作站這些常年上線的系統來說的話，那麼，無論如何，swap 還是需要建立的。
+
+**因為 swap 主要的功能是當實體記憶體不夠時，則某些在記憶體當中所佔的程式會暫時被移動到 swap 當中，讓實體記憶體可以被需要的程式來使用**。另外，**如果你的主機支援電源管理模式， 也就是說，你的 Linux 主機系統可以進入『休眠』模式的話，那麼， 運作當中的程式狀態則會被紀錄到 swap 去，以作為『喚醒』主機的狀態依據**！ 另外，有某些程式在運作時，本來就會利用 swap 的特性來存放一些資料段， 所以， swap 來是需要建立的！只是不需要太大！
+
+## 7.6 檔案系統的特殊觀察與操作
+### 7.6.1 磁碟空間之浪費問題
+我們在前面的 EXT2 data block 介紹中談到了一個 block 只能放置一個檔案， 因此太多小檔案將會浪費非常多的磁碟容量。但你有沒有注意到，整個檔案系統中包括 superblock, inode table 與其他中介資料等其實都會浪費磁碟容量喔！所以當我們在 /dev/vda4, /dev/vda5 建立起 xfs/ext4 檔案系統時， 一掛載就立刻有很多容量被用掉了！
+
+另外，不知道你有沒有發現到，當你使用 ls -l 去查詢某個目錄下的資料時，第一行都會出現一個『total』的字樣！ 那是啥東西？其實那就是該目錄下的所有資料所耗用的實際 block 數量 * block 大小的值。 我們可以透過 ll -s 來觀察看看上述的意義：
+```
+kevin@ubuntu:~/os$ ll -sh
+total 540K
+4.0K drwxrwxr-x  6 kevin kevin 4.0K Oct 28 09:47 ./
+4.0K drwxr-xr-x 41 kevin kevin 4.0K Nov  3 14:50 ../
+4.0K drwxrwxr-x  9 kevin kevin 4.0K Nov  2 17:05 .git/
+4.0K -rw-rw-r--  1 kevin kevin 2.5K Oct 28 09:47 .gitattributes
+8.0K -rw-rw-r--  1 kevin kevin 5.7K Oct 28 09:47 .gitignore
+4.0K -rw-rw-r--  1 kevin kevin  141 Oct 13 17:55 .gitmodules
+4.0K drwxrwxr-x  5 kevin kevin 4.0K Oct 18 15:42 os_experiment/
+4.0K drwxrwxr-x  8 kevin kevin 4.0K Oct 22 19:57 os_note/
+4.0K drwxrwxr-x  2 kevin kevin 4.0K Oct 19 17:33 .vscode/
+500K -rwxrw-rw-  1 kevin kevin 497K Oct  9 15:33 路线图.jpg*
+```
+從上面的特殊字體部分，那就是每個檔案所使用掉 block 的容量！舉例來說，那個 crontab 雖然僅有 451bytes ， 不過他卻佔用了整個 block (每個 block 為 4K)，所以將所有的檔案的所有的 block 加總就得到 12Kbytes 那個數值了。 如果計算每個檔案實際容量的加總結果，其實只有不到 5K 而已～所以囉，這樣就耗費掉好多容量了！未來大家在討論小磁碟、 大磁碟，檔案容量的損耗時，要回想到這個區塊喔！ ^_^
+
+### 7.6.2 利用 GNU 的 parted 進行分割行為(Optional)
+parted 可以直接在一行指令列就完成分割，是一個非常好用的指令！它常用的語法如下：
+```
+[root@study ~]# parted [裝置] [指令 [參數]]
+選項與參數：
+指令功能：
+          新增分割：mkpart [primary|logical|extended] [ext4|vfat|xfs] 開始 結束
+          顯示分割：print
+          刪除分割：rm [partition]
+
+範例一：以 parted 列出目前本機的分割表資料
+kevin@ubuntu:~/os$ sudo parted /dev/sda print
+[sudo] password for kevin: 
+Model: VMware, VMware Virtual S (scsi)
+Disk /dev/sda: 53.7GB
+Sector size (logical/physical): 512B/512B
+Partition Table: msdos
+Disk Flags: 
+
+Number  Start   End     Size    Type     File system  Flags
+ 1      1049kB  53.7GB  53.7GB  primary  ext4         boot
+```
+
+## 7.7 重點回顧
+- 一個可以被掛載的資料通常稱為『檔案系統, filesystem』而不是分割槽 (partition) 喔！
+- 基本上 Linux 的傳統檔案系統為 Ext2 ，該檔案系統內的資訊主要有：
+     - superblock：記錄此 filesystem 的整體資訊，包括inode/block的總量、使用量、剩餘量， 以及檔案系統的格式與相關資訊等；
+     - inode：記錄檔案的屬性，一個檔案佔用一個inode，同時記錄此檔案的資料所在的 block 號碼；
+     - block：實際記錄檔案的內容，若檔案太大時，會佔用多個 block 。
+- Ext2 檔案系統的資料存取為索引式檔案系統(indexed allocation)
+- 需要磁碟重組的原因就是檔案寫入的 block 太過於離散了，此時檔案讀取的效能將會變的很差所致。 這個時候可以透過磁碟重組將同一個檔案所屬的 blocks 彙整在一起。
+- Ext2檔案系統主要有：boot sector, superblock, inode bitmap, block bitmap, inode table, data block 等六大部分。
+- data block 是用來放置檔案內容資料地方，在 Ext2 檔案系統中所支援的 block 大小有 1K, 2K 及 4K 三種而已
+- inode 記錄檔案的屬性/權限等資料，其他重要項目為： 每個 inode 大小均為固定，有 128/256bytes 兩種基本容量。每個檔案都僅會佔用一個 inode 而已； 因此檔案系統能夠建立的檔案數量與 inode 的數量有關；
+- 檔案的 block 在記錄檔案的實際資料，目錄的 block 則在記錄該目錄底下檔名與其 inode 號碼的對照表；
+- 日誌式檔案系統 (journal) 會多出一塊記錄區，隨時記載檔案系統的主要活動，可加快系統復原時間；
+- Linux 檔案系統為增加效能，會讓主記憶體作為大量的磁碟快取；
+- 實體連結只是多了一個檔名對該 inode 號碼的連結而已；
+- 符號連結就類似Windows的捷徑功能。
+- 磁碟的使用必需要經過：分割、格式化與掛載，分別慣用的指令為：gdisk, mkfs, mount三個指令
+- 分割時，應使用 parted 檢查分割表格式，再判斷使用 fdisk/gdisk 來分割，或直接使用 parted 分割
+- 為了考慮效能，XFS 檔案系統格式化時，可以考慮加上 agcount/su/sw/extsize 等參數較佳
+- 如果磁碟已無未分割的容量，可以考慮使用大型檔案取代磁碟裝置的處理方式，透過 dd 與格式化功能。
+- 開機自動掛載可參考/etc/fstab之設定，設定完畢務必使用 mount -a 測試語法正確否；
