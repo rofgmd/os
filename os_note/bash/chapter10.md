@@ -381,4 +381,369 @@ en_ZM
 en_ZM.utf8
 en_ZW.utf8
 POSIX
+
+kevin@ubuntu:~/os$ locale
+LANG=en_US.UTF-8
+LANGUAGE=
+LC_CTYPE="en_US.UTF-8"
+LC_NUMERIC="en_US.UTF-8"
+LC_TIME="en_US.UTF-8"
+LC_COLLATE="en_US.UTF-8"
+LC_MONETARY="en_US.UTF-8"
+LC_MESSAGES="en_US.UTF-8"
+LC_PAPER="en_US.UTF-8"
+LC_NAME="en_US.UTF-8"
+LC_ADDRESS="en_US.UTF-8"
+LC_TELEPHONE="en_US.UTF-8"
+LC_MEASUREMENT="en_US.UTF-8"
+LC_IDENTIFICATION="en_US.UTF-8"
+LC_ALL=
 ```
+
+### 10.2.5 變數的有效範圍
+
+蝦密？變數也有使用的『範圍』？沒錯啊～我們在上頭的 export 指令說明中，就提到了這個概念了。如果在跑程式的時候，有父程序與子程序的不同程序關係時， 則『變數』可否被引用與 export 有關。被 export 後的變數，我們可以稱他為『環境變數』！ 環境變數可以被子程序所引用，但是其他的自訂變數內容就不會存在於子程序中。
+
+在學理方面，為什麼環境變數的資料可以被子程序所引用呢？這是因為記憶體配置的關係！理論上是這樣的：
+
+    當啟動一個 shell，作業系統會分配一記憶區塊給 shell 使用，此記憶體內之變數可讓子程序取用
+    若在父程序利用 export 功能，可以讓自訂變數的內容寫到上述的記憶區塊當中(環境變數)；
+    當載入另一個 shell 時 (亦即啟動子程序，而離開原本的父程序了)，子 shell 可以將父 shell 的環境變數所在的記憶區塊導入自己的環境變數區塊當中。
+透過這樣的關係，我們就可以讓某些變數在相關的程序之間存在，以幫助自己更方便的操作環境喔！ 不過要提醒的是，這個『環境變數』與『bash 的操作環境』意思不太一樣，舉例來說， PS1 並不是環境變數， 但是這個 PS1 會影響到 bash 的介面 (提示字元嘛)！相關性要釐清喔！^_^
+
+### 10.2.6 變數鍵盤讀取、陣列與宣告： read, array, declare
+
+我們上面提到的變數設定功能，都是由指令列直接設定的，那麼，可不可以讓使用者能夠經由鍵盤輸入？ 什麼意思呢？是否記得某些程式執行的過程當中，會等待使用者輸入 "yes/no" 之類的訊息啊？ 在 bash 裡面也有相對應的功能喔！此外，我們還可以宣告這個變數的屬性，例如：陣列或者是數字等等的。底下就來看看吧！
+
+#### read
+
+要讀取來自鍵盤輸入的變數，就是用 read 這個指令了。這個指令最常被用在 shell script 的撰寫當中， 想要跟使用者對談？用這個指令就對了。關於 script 的寫法，我們會在第十三章介紹，底下先來瞧一瞧 read 的相關語法吧！
+
+```
+[dmtsai@study ~]$ read [-pt] variable
+選項與參數：
+-p  ：後面可以接提示字元！
+-t  ：後面可以接等待的『秒數！』這個比較有趣～不會一直等待使用者啦！
+
+範例一：讓使用者由鍵盤輸入一內容，將該內容變成名為 atest 的變數
+[dmtsai@study ~]$ read atest
+This is a test        <==此時游標會等待你輸入！請輸入左側文字看看
+[dmtsai@study ~]$ echo ${atest}
+This is a test          <==你剛剛輸入的資料已經變成一個變數內容！
+
+範例二：提示使用者 30 秒內輸入自己的大名，將該輸入字串作為名為 named 的變數內容
+[dmtsai@study ~]$ read -p "Please keyin your name: " -t 30 named
+Please keyin your name: VBird Tsai   <==注意看，會有提示字元喔！
+[dmtsai@study ~]$ echo ${named}
+VBird Tsai        <==輸入的資料又變成一個變數的內容了！
+```
+
+read 之後不加任何參數，直接加上變數名稱，那麼底下就會主動出現一個空白行等待你的輸入(如範例一)。 如果加上 -t 後面接秒數，例如上面的範例二，那麼 30 秒之內沒有任何動作時， 該指令就會自動略過了～如果是加上 -p ，嘿嘿！在輸入的游標前就會有比較多可以用的提示字元給我們參考！ 在指令的下達裡面，比較美觀啦！ ^_^
+
+#### declare / typeset
+
+declare 或 typeset 是一樣的功能，就是在『宣告變數的類型』。如果使用 declare 後面並沒有接任何參數，那麼 bash 就會主動的將所有的變數名稱與內容通通叫出來，就好像使用 set 一樣啦！ 那麼 declare 還有什麼語法呢？看看先：
+```
+[dmtsai@study ~]$ declare [-aixr] variable
+選項與參數：
+-a  ：將後面名為 variable 的變數定義成為陣列 (array) 類型
+-i  ：將後面名為 variable 的變數定義成為整數數字 (integer) 類型
+-x  ：用法與 export 一樣，就是將後面的 variable 變成環境變數；
+-r  ：將變數設定成為 readonly 類型，該變數不可被更改內容，也不能 unset
+
+範例一：讓變數 sum 進行 100+300+50 的加總結果
+[dmtsai@study ~]$ sum=100+300+50
+[dmtsai@study ~]$ echo ${sum}
+100+300+50  <==咦！怎麼沒有幫我計算加總？因為這是文字型態的變數屬性啊！
+[dmtsai@study ~]$ declare -i sum=100+300+50
+[dmtsai@study ~]$ echo ${sum}
+450         <==瞭乎？？
+
+kevin@ubuntu:~/os$ sum=100+200+300
+kevin@ubuntu:~/os$ echo $sum
+100+200+300
+kevin@ubuntu:~/os$ declare -i sum
+kevin@ubuntu:~/os$ echo $suum
+
+kevin@ubuntu:~/os$ echo $sum
+100+200+300
+kevin@ubuntu:~/os$ declare -i sum=100+200+300
+kevin@ubuntu:~/os$ echo $sum
+600
+```
+由於在預設的情況底下， bash 對於變數有幾個基本的定義：
+
+**變數類型預設為『字串』**，所以若不指定變數類型，則 1+2 為一個『字串』而不是『計算式』。 所以上述第一個執行的結果才會出現那個情況的；
+bash 環境中的數值運算，預設最多僅能到達整數形態，所以 1/3 結果是 0；
+現在你曉得為啥你需要進行變數宣告了吧？如果需要非字串類型的變數，那就得要進行變數的宣告才行啦！ 底下繼續來玩些其他的 declare 功能。
+
+```
+範例二：將 sum 變成環境變數
+[dmtsai@study ~]$ declare -x sum
+[dmtsai@study ~]$ export | grep sum
+declare -ix sum="450"  <==果然出現了！包括有 i 與 x 的宣告！
+
+範例三：讓 sum 變成唯讀屬性，不可更動！
+[dmtsai@study ~]$ declare -r sum
+[dmtsai@study ~]$ sum=testing
+-bash: sum: readonly variable  <==老天爺～不能改這個變數了！
+
+範例四：讓 sum 變成非環境變數的自訂變數吧！
+[dmtsai@study ~]$ declare +x sum  <== 將 - 變成 + 可以進行『取消』動作
+[dmtsai@study ~]$ declare -p sum  <== -p 可以單獨列出變數的類型
+declare -ir sum="450" <== 看吧！只剩下 i, r 的類型，不具有 x 囉！
+```
+declare 也是個很有用的功能～尤其是當我們需要使用到底下的陣列功能時， 他也可以幫我們宣告陣列的屬性喔！不過，老話一句，陣列也是在 shell script 比較常用的啦！ 比較有趣的是，如果你不小心將變數設定為『唯讀』，通常得要登出再登入才能復原該變數的類型了！ @_@
+
+#### 陣列 (array) 變數類型
+
+某些時候，我們必須使用陣列來宣告一些變數，這有什麼好處啊？在一般人的使用上， 果然是看不出來有什麼好處的！不過，如果您曾經寫過程式的話，那才會比較瞭解陣列的意義～ 陣列對寫數值程式的設計師來說，可是不能錯過學習的重點之一哩！好！不囉唆～ 那麼要如何設定陣列的變數與內容呢？在 bash 裡頭，陣列的設定方式是：
+
+var[index]=content
+
+意思是說，我有一個陣列名稱為 var ，而這個陣列的內容為 var[1]=小明， var[2]=大明， var[3]=好明 .... 等等，那個 index 就是一些數字啦，重點是用中刮號 ([ ]) 來設定的。 目前我們 bash 提供的是一維陣列。老實說，如果您不必寫一些複雜的程式， 那麼這個陣列的地方，可以先略過，等到有需要再來學習即可！因為要製作出陣列， 通常與迴圈或者其他判斷式交互使用才有比較高的存在意義！
+```
+範例：設定上面提到的 var[1] ～ var[3] 的變數。
+[dmtsai@study ~]$ var[1]="small min"
+[dmtsai@study ~]$ var[2]="big min"
+[dmtsai@study ~]$ var[3]="nice min"
+[dmtsai@study ~]$ echo "${var[1]}, ${var[2]}, ${var[3]}"
+small min, big min, nice min`
+```
+
+### 10.2.7 與檔案系統及程序的限制關係： ulimit
+
+想像一個狀況：我的 Linux 主機裡面同時登入了十個人，這十個人不知怎麼搞的， 同時開啟了 100 個檔案，每個檔案的大小約 10MBytes ，請問一下， 我的 Linux 主機的記憶體要有多大才夠？ 10*100*10 = 10000 MBytes = 10GBytes ... 老天爺，這樣，系統不掛點才有鬼哩！為了要預防這個情況的發生，所以我們的 bash 是可以『限制使用者的某些系統資源』的，包括可以開啟的檔案數量， 可以使用的 CPU 時間，可以使用的記憶體總量等等。如何設定？用 ulimit 吧！
+
+```
+[dmtsai@study ~]$ ulimit [-SHacdfltu] [配額]
+選項與參數：
+-H  ：hard limit ，嚴格的設定，必定不能超過這個設定的數值；
+-S  ：soft limit ，警告的設定，可以超過這個設定值，但是若超過則有警告訊息。
+      在設定上，通常 soft 會比 hard 小，舉例來說，soft 可設定為 80 而 hard 
+      設定為 100，那麼你可以使用到 90 (因為沒有超過 100)，但介於 80~100 之間時，
+      系統會有警告訊息通知你！
+-a  ：後面不接任何選項與參數，可列出所有的限制額度；
+-c  ：當某些程式發生錯誤時，系統可能會將該程式在記憶體中的資訊寫成檔案(除錯用)，
+      這種檔案就被稱為核心檔案(core file)。此為限制每個核心檔案的最大容量。
+-f  ：此 shell 可以建立的最大檔案容量(一般可能設定為 2GB)單位為 Kbytes
+-d  ：程序可使用的最大斷裂記憶體(segment)容量；
+-l  ：可用於鎖定 (lock) 的記憶體量
+-t  ：可使用的最大 CPU 時間 (單位為秒)
+-u  ：單一使用者可以使用的最大程序(process)數量。
+
+範例一：列出你目前身份(假設為一般帳號)的所有限制資料數值
+[dmtsai@study ~]$ ulimit -a
+core file size          (blocks, -c) 0          <==只要是 0 就代表沒限制
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited  <==可建立的單一檔案的大小
+pending signals                 (-i) 4903
+max locked memory       (kbytes, -l) 64
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 1024       <==同時可開啟的檔案數量
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) 8192
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 4096
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+
+範例二：限制使用者僅能建立 10MBytes 以下的容量的檔案
+[dmtsai@study ~]$ ulimit -f 10240
+[dmtsai@study ~]$ ulimit -a | grep 'file size'
+core file size          (blocks, -c) 0
+file size               (blocks, -f) 10240 <==最大量為10240Kbyes，相當10Mbytes
+
+[dmtsai@study ~]$ dd if=/dev/zero of=123 bs=1M count=20
+File size limit exceeded (core dumped) <==嘗試建立 20MB 的檔案，結果失敗了！
+
+[dmtsai@study ~]$ rm 123  <==趕快將這個檔案刪除囉！同時你得要登出再次的登入才能解開 10M 的限制
+
+kevin@ubuntu:~/os$ ulimit -a
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 21431
+max locked memory       (kbytes, -l) 65536
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 1048576
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) 8192
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 21431
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+```
+
+### 10.2.8 變數內容的刪除、取代與替換 (Optional)
+
+變數除了可以直接設定來修改原本的內容之外，有沒有辦法透過簡單的動作來將變數的內容進行微調呢？ 舉例來說，進行變數內容的刪除、取代與替換等！是可以的！我們可以透過幾個簡單的小步驟來進行變數內容的微調喔！ 底下就來試試看！
+
+#### 變數內容的刪除與取代
+
+變數的內容可以很簡單的透過幾個咚咚來進行刪除喔！我們使用 PATH 這個變數的內容來做測試好了。 請你依序進行底下的幾個例子來玩玩，比較容易感受的到鳥哥在這裡想要表達的意義：
+```
+範例一：先讓小寫的 path 自訂變數設定的與 PATH 內容相同
+[dmtsai@study ~]$ path=${PATH}
+[dmtsai@study ~]$ echo ${path}
+/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin:/home/dmtsai/bin
+
+範例二：假設我不喜歡 local/bin，所以要將前 1 個目錄刪除掉，如何顯示？
+[dmtsai@study ~]$ echo ${path#/*local/bin:}
+/usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin:/home/dmtsai/bin
+
+${variable#/*local/bin:}
+   上面的特殊字體部分是關鍵字！用在這種刪除模式所必須存在的
+
+${variable#/*local/bin:}
+   這就是原本的變數名稱，以上面範例二來說，這裡就填寫 path 這個『變數名稱』啦！
+
+${variable#/*local/bin:}
+   這是重點！代表『從變數內容的最前面開始向右刪除』，且僅刪除最短的那個
+
+${variable#/*local/bin:}
+   代表要被刪除的部分，由於 # 代表由前面開始刪除，所以這裡便由開始的 / 寫起。
+   需要注意的是，我們還可以透過萬用字元 * 來取代 0 到無窮多個任意字元
+
+   以上面範例二的結果來看， path 這個變數被刪除的內容如下所示：
+/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin:/home/dmtsai/bin
+```
+很有趣吧！這樣瞭解了 # 的功能了嗎？接下來讓我們來看看底下的範例三！
+```
+範例三：我想要刪除前面所有的目錄，僅保留最後一個目錄
+[dmtsai@study ~]$ echo ${path#/*:}
+/usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin:/home/dmtsai/bin
+# 由於一個 # 僅刪除掉最短的那個，因此他刪除的情況可以用底下的刪除線來看：
+# /usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin:/home/dmtsai/bin
+
+[dmtsai@study ~]$ echo ${path##/*:}
+/home/dmtsai/bin
+# 嘿！多加了一個 # 變成 ## 之後，他變成『刪除掉最長的那個資料』！亦即是：
+# /home/dmtsai/bin
+```
+
+非常有趣！不是嗎？因為在 PATH 這個變數的內容中，每個目錄都是以冒號『:』隔開的， 所以要從頭刪除掉目錄就是介於斜線 (/) 到冒號 (:) 之間的資料！但是 PATH 中不止一個冒號 (:) 啊！ 所以 # 與 ## 就分別代表：
+
+\# ：符合取代文字的『最短的』那一個；
+\##：符合取代文字的『最長的』那一個
+上面談到的是『從前面開始刪除變數內容』，那麼如果想要『從後面向前刪除變數內容』呢？ 這個時候就得使用百分比 (%) 符號了！來看看範例四怎麼做吧！
+```
+範例四：我想要刪除最後面那個目錄，亦即從 : 到 bin 為止的字串
+[dmtsai@study ~]$ echo ${path%:*bin}
+/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin
+# 注意啊！最後面一個目錄不見去！
+# 這個 % 符號代表由最後面開始向前刪除！所以上面得到的結果其實是來自如下：
+# /usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin
+
+範例五：那如果我只想要保留第一個目錄呢？
+[dmtsai@study ~]$ echo ${path%%:*bin}
+/usr/local/bin
+# 同樣的， %% 代表的則是最長的符合字串，所以結果其實是來自如下：
+# /usr/local/bin
+```
+由於我是想要由變數內容的後面向前面刪除，而我這個變數內容最後面的結尾是『/home/dmtsai/bin』， 所以你可以看到上面我刪除的資料最終一定是『bin』，亦即是『:*bin』那個 * 代表萬用字元！ 至於 % 與 %% 的意義其實與 # 及 ## 類似！這樣理解否？
+
+瞭解了刪除功能後，接下來談談取代吧！繼續玩玩範例六囉！
+```
+範例六：將 path 的變數內容內的 sbin 取代成大寫 SBIN：
+[dmtsai@study ~]$ echo ${path/sbin/SBIN}
+/usr/local/bin:/usr/bin:/usr/local/SBIN:/usr/sbin:/home/dmtsai/.local/bin:/home/dmtsai/bin
+# 這個部分就容易理解的多了！關鍵字在於那兩個斜線，兩斜線中間的是舊字串
+# 後面的是新字串，所以結果就會出現如上述的特殊字體部分囉！
+
+[dmtsai@study ~]$ echo ${path//sbin/SBIN}
+/usr/local/bin:/usr/bin:/usr/local/SBIN:/usr/SBIN:/home/dmtsai/.local/bin:/home/dmtsai/bin
+# 如果是兩條斜線，那麼就變成所有符合的內容都會被取代喔！
+```
+
+
+|變數設定方式|	說明|
+|---|---|
+|\${變數#關鍵字} \${變數##關鍵字}	|若變數內容從頭開始的資料符合『關鍵字』，則將符合的最短資料刪除若變數內容從頭開始的資料符合『關鍵字』，則將符合的最長資料刪除|
+|\${變數\%關鍵字} \${變數%%關鍵字}	|若變數內容從尾向前的資料符合『關鍵字』，則將符合的最短資料刪除若變數內容從尾向前的資料符合『關鍵字』，則將符合的最長資料刪除|
+|\${變數/舊字串/新字串} \${變數//舊字串/新字串}	|若變數內容符合『舊字串』則『第一個舊字串會被新字串取代』 若變數內容符合『舊字串』則『全部的舊字串會被新字串取代』|
+
+#### 變數的測試與內容替換
+
+在某些時刻我們常常需要『判斷』某個變數是否存在，若變數存在則使用既有的設定，若變數不存在則給予一個常用的設定。 我們舉底下的例子來說明好了，看看能不能較容易被你所理解呢！
+
+```
+範例一：測試一下是否存在 username 這個變數，若不存在則給予 username 內容為 root
+[dmtsai@study ~]$ echo ${username}
+           <==由於出現空白，所以 username 可能不存在，也可能是空字串
+[dmtsai@study ~]$ username=${username-root}
+[dmtsai@study ~]$ echo ${username}
+root       <==因為 username 沒有設定，所以主動給予名為 root 的內容。
+[dmtsai@study ~]$ username="vbird tsai" <==主動設定 username 的內容
+[dmtsai@study ~]$ username=${username-root}
+[dmtsai@study ~]$ echo ${username}
+vbird tsai <==因為 username 已經設定了，所以使用舊有的設定而不以 root 取代
+```
+在上面的範例中，重點在於減號『 - 』後面接的關鍵字！基本上你可以這樣理解：
+```
+new_var=${old_var-content}
+   新的變數，主要用來取代舊變數。新舊變數名稱其實常常是一樣的
+
+new_var=${old_var-content}
+   這是本範例中的關鍵字部分！必須要存在的哩！
+
+new_var=${old_var-content}
+   舊的變數，被測試的項目！
+
+new_var=${old_var-content}
+   變數的『內容』，在本範例中，這個部分是在『給予未設定變數的內容』
+```
+
+<div align=center><img src="/os_note/bash/picture/屏幕截图%202022-11-11%20123658.png"></div>
+<div align=center></div>
+
+根據上面這張表，我們來進行幾個範例的練習吧！ ^_^！首先讓我們來測試一下，如果舊變數 (str) 不存在時， 我們要給予新變數一個內容，若舊變數存在則新變數內容以舊變數來替換，結果如下：
+
+```
+測試：先假設 str 不存在 (用 unset) ，然後測試一下減號 (-) 的用法：
+[dmtsai@study ~]$ unset str; var=${str-newvar}
+[dmtsai@study ~]$ echo "var=${var}, str=${str}"
+var=newvar, str=        <==因為 str 不存在，所以 var 為 newvar
+
+測試：若 str 已存在，測試一下 var 會變怎樣？：
+[dmtsai@study ~]$ str="oldvar"; var=${str-newvar}
+[dmtsai@study ~]$ echo "var=${var}, str=${str}"
+var=oldvar, str=oldvar  <==因為 str 存在，所以 var 等於 str 的內容
+```
+關於減號 (-) 其實上面我們談過了！這裡的測試只是要讓你更加瞭解，這個減號的測試並不會影響到舊變數的內容。 如果你想要將舊變數內容也一起替換掉的話，那麼就使用等號 (=) 吧！
+```
+測試：先假設 str 不存在 (用 unset) ，然後測試一下等號 (=) 的用法：
+[dmtsai@study ~]$ unset str; var=${str=newvar}
+[dmtsai@study ~]$ echo "var=${var}, str=${str}"
+var=newvar, str=newvar  <==因為 str 不存在，所以 var/str 均為 newvar
+
+測試：如果 str 已存在了，測試一下 var 會變怎樣？
+[dmtsai@study ~]$ str="oldvar"; var=${str=newvar}
+[dmtsai@study ~]$ echo "var=${var}, str=${str}"
+var=oldvar, str=oldvar  <==因為 str 存在，所以 var 等於 str 的內容
+```
+那如果我只是想知道，如果舊變數不存在時，整個測試就告知我『有錯誤』，此時就能夠使用問號『 ? 』的幫忙啦！ 底下這個測試練習一下先！
+```
+測試：若 str 不存在時，則 var 的測試結果直接顯示 "無此變數"
+[dmtsai@study ~]$ unset str; var=${str?無此變數}
+-bash: str: 無此變數    <==因為 str 不存在，所以輸出錯誤訊息 
+
+測試：若 str 存在時，則 var 的內容會與 str 相同！
+[dmtsai@study ~]$ str="oldvar"; var=${str?novar}
+[dmtsai@study ~]$ echo "var=${var}, str=${str}"
+var=oldvar, str=oldvar  <==因為 str 存在，所以 var 等於 str 的內容
+```
+基本上這種變數的測試也能夠透過 shell script 內的 if...then... 來處理， 不過既然 bash 有提供這麼簡單的方法來測試變數，那我們也可以多學一些嘛！ 不過這種變數測試通常是在程式設計當中比較容易出現，如果這裡看不懂就先略過，未來有用到判斷變數值時，再回來看看吧！ ^_^
+
+## 10.3 命令別名與歷史命令
+
+我們知道在早期的 DOS 年代，清除螢幕上的資訊可以使用 cls 來清除，但是在 Linux 裡面， 我們則是使用 clear 來清除畫面的。那麼可否讓 cls 等於 clear 呢？可以啊！用啥方法？ link file 還是什麼的？別急！底下我們介紹不用 link file 的命令別名來達成。那麼什麼又是歷史命令？ 曾經做過的舉動我們可以將他記錄下來喔！那就是歷史命令囉～底下分別來談一談這兩個玩意兒。
+
+### 10.3.1 命令別名設定： alias, unalias
+
