@@ -747,3 +747,154 @@ var=oldvar, str=oldvar  <==因為 str 存在，所以 var 等於 str 的內容
 
 ### 10.3.1 命令別名設定： alias, unalias
 
+```
+[dmtsai@study ~]$ history [n]
+[dmtsai@study ~]$ history [-c]
+[dmtsai@study ~]$ history [-raw] histfiles
+選項與參數：
+n   ：數字，意思是『要列出最近的 n 筆命令列表』的意思！
+-c  ：將目前的 shell 中的所有 history 內容全部消除
+-a  ：將目前新增的 history 指令新增入 histfiles 中，若沒有加 histfiles ，
+      則預設寫入 ~/.bash_history
+-r  ：將 histfiles 的內容讀到目前這個 shell 的 history 記憶中；
+-w  ：將目前的 history 記憶內容寫入 histfiles 中！
+
+範例一：列出目前記憶體內的所有 history 記憶
+[dmtsai@study ~]$ history
+# 前面省略
+ 1017  man bash
+ 1018  ll
+ 1019  history 
+ 1020  history
+# 列出的資訊當中，共分兩欄，第一欄為該指令在這個 shell 當中的代碼，
+# 另一個則是指令本身的內容喔！至於會秀出幾筆指令記錄，則與 HISTSIZE 有關！
+
+範例二：列出目前最近的 3 筆資料
+[dmtsai@study ~]$ history 3
+ 1019  history 
+ 1020  history
+ 1021  history 3
+
+範例三：立刻將目前的資料寫入 histfile 當中
+[dmtsai@study ~]$ history -w
+# 在預設的情況下，會將歷史紀錄寫入 ~/.bash_history 當中！
+[dmtsai@study ~]$ echo ${HISTSIZE}
+1000
+```
+
+在正常的情況下，歷史命令的讀取與記錄是這樣的：
+
+- 當我們以 bash 登入 Linux 主機之後，系統會主動的由家目錄的 ~/.bash_history 讀取以前曾經下過的指令，那麼 ~/.bash_history 會記錄幾筆資料呢？這就與你 bash 的 HISTFILESIZE 這個變數設定值有關了！
+
+- 假設我這次登入主機後，共下達過 100 次指令，『等我登出時， 系統就會將 101~1100 這總共 1000 筆歷史命令更新到 ~/.bash_history 當中。』 也就是說，歷史命令在我登出時，會將最近的 HISTFILESIZE 筆記錄到我的紀錄檔當中啦！
+
+- 當然，也可以用 history -w 強制立刻寫入的！那為何用『更新』兩個字呢？ 因為 ~/.bash_history 記錄的筆數永遠都是 HISTFILESIZE 那麼多，舊的訊息會被主動的拿掉！ 僅保留最新的！
+
+那麼 history 這個歷史命令只可以讓我查詢命令而已嗎？呵呵！當然不止啊！ 我們可以利用相關的功能來幫我們執行命令呢！舉例來說囉：
+
+```
+kevin@ubuntu:~$ !10
+ls
+Desktop    Downloads  os        Public  Templates
+Documents  Music      Pictures  snap    Videos
+kevin@ubuntu:~$ !s
+sudo apt install python3-pip
+[sudo] password for kevin: 
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+python3-pip is already the newest version (20.0.2-5ubuntu1.6).
+The following package was automatically installed and is no longer required:
+  libllvm11
+Use 'sudo apt autoremove' to remove it.
+0 upgraded, 0 newly installed, 0 to remove and 404 not upgraded.
+kevin@ubuntu:~$ !l
+ls
+Desktop    Downloads  os        Public  Templates
+Documents  Music      Pictures  snap    Videos
+kevin@ubuntu:~$ !!
+ls
+Desktop    Downloads  os        Public  Templates
+Documents  Music      Pictures  snap    Videos
+```
+
+## 10.4 Bash Shell 的操作環境：
+
+### 10.4.1 路徑與指令搜尋順序
+
+我們在第五章與第六章都曾談過『相對路徑與絕對路徑』的關係， 在本章的前幾小節也談到了 alias 與 bash 的內建命令。現在我們知道系統裡面其實有不少的 ls 指令， 或者是包括內建的 echo 指令，那麼來想一想，如果一個指令 (例如 ls) 被下達時， 到底是哪一個 ls 被拿來運作？很有趣吧！基本上，指令運作的順序可以這樣看：
+
+1. 以相對/絕對路徑執行指令，例如『 /bin/ls 』或『 ./ls 』；
+2. 由 alias 找到該指令來執行；
+3 .由 bash 內建的 (builtin) 指令來執行；
+4. 透過 $PATH 這個變數的順序搜尋到的第一個指令來執行。
+
+### 10.4.2 bash 的進站與歡迎訊息： /etc/issue, /etc/motd
+
+```
+kevin@ubuntu:~$ cat /etc/issue
+Ubuntu 20.04.2 LTS \n \l
+
+```
+
+>issue 内各代码意义：
+\d 本地端时间日期； 
+\l 显示第几个终端机接口； 
+\m 显示硬件等级 (i386/i486/i586/i686...)； 
+\n 显示主机网络名称； 
+\o 显示 domain name； 
+\r 操作系统版本 (相当于 uname -r) 
+\t 显示本地端时间； 
+\s 操作系统名称； 
+\v 操作系统版本。
+
+
+### 10.4.3 bash 的環境設定檔
+
+你是否會覺得奇怪，怎麼我們什麼動作都沒有進行，但是一進入 bash 就取得一堆有用的變數了？ 這是因為系統有一些環境設定檔案的存在，讓 bash 在啟動時直接讀取這些設定檔，以規劃好 bash 的操作環境啦！ 而這些設定檔又可以分為全體系統的設定檔以及使用者個人偏好設定檔。要注意的是， 我們前幾個小節談到的命令別名啦、自訂的變數啦，在你登出 bash 後就會失效，所以你想要保留你的設定， 就得要將這些設定寫入設定檔才行。底下就讓我們來聊聊吧！
+
+#### login 與 non-login shell
+
+在開始介紹 bash 的設定檔前，我們一定要先知道的就是 login shell 與 non-login shell！ 重點在於有沒有登入 (login) 啦！
+
+- login shell：取得 bash 時需要完整的登入流程的，就稱為 login shell。舉例來說，你要由 tty1 ~ tty6 登入，需要輸入使用者的帳號與密碼，此時取得的 bash 就稱為『 login shell 』囉；
+
+- non-login shell：取得 bash 介面的方法不需要重複登入的舉動，舉例來說，(1)你以 X window 登入 Linux 後， 再以 X 的圖形化介面啟動終端機，**此時那個終端介面並沒有需要再次的輸入帳號與密碼**，那個 bash 的環境就稱為 non-login shell了。(2)**你在原本的 bash 環境下再次下達 bash 這個指令，同樣的也沒有輸入帳號密碼**， 那第二個 bash (子程序) 也是 non-login shell 。
+
+為什麼要介紹 login, non-login shell 呢？這是因為這兩個取得 bash 的情況中，讀取的設定檔資料並不一樣所致。 由於我們需要登入系統，所以先談談 login shell 會讀取哪些設定檔？一般來說，login shell 其實只會讀取這兩個設定檔：
+
+- /etc/profile：這是系統整體的設定，你最好不要修改這個檔案；
+- ~/.bash_profile 或 ~/.bash_login 或 ~/.profile：屬於使用者個人設定，你要改自己的資料，就寫入這裡！
+
+
+那麼，就讓我們來聊一聊這兩個檔案吧！這兩個檔案的內容可是非常繁複的喔！
+
+#### /etc/profile (login shell 才會讀)
+
+你可以使用 vim 去閱讀一下這個檔案的內容。這個設定檔可以利用使用者的識別碼 (UID) 來決定很多重要的變數資料， 這也是每個使用者登入取得 bash 時一定會讀取的設定檔！ 所以如果你想要幫所有使用者設定整體環境，那就是改這裡囉！不過，沒事還是不要隨便改這個檔案喔 這個檔案設定的變數主要有：
+
+- PATH：會依據 UID 決定 PATH 變數要不要含有 sbin 的系統指令目錄；
+- MAIL：依據帳號設定好使用者的 mailbox 到 /var/spool/mail/帳號名；
+- USER：根據使用者的帳號設定此一變數內容；
+- HOSTNAME：依據主機的 hostname 指令決定此一變數內容；
+- HISTSIZE：歷史命令記錄筆數。CentOS 7.x 設定為 1000 ；
+- umask：包括 root 預設為 022 而一般用戶為 002 等！
+
+/etc/profile 可不止會做這些事而已，他還會去呼叫外部的設定資料喔！在 CentOS 7.x 預設的情況下，底下這些資料會依序的被呼叫進來：
+
+- /etc/profile.d/*.sh
+
+其實這是個目錄內的眾多檔案！只要在 /etc/profile.d/ 這個目錄內且副檔名為 .sh ，另外，使用者能夠具有 r 的權限， 那麼該檔案就會被 /etc/profile 呼叫進來。在 CentOS 7.x 中，這個目錄底下的檔案規範了 bash 操作介面的顏色、 語系、ll 與 ls 指令的命令別名、vi 的命令別名、which 的命令別名等等。如果你需要幫所有使用者設定一些共用的命令別名時， 可以在這個目錄底下自行建立副檔名為 .sh 的檔案，並將所需要的資料寫入即可喔！
+
+- /etc/locale.conf
+
+這個檔案是由 /etc/profile.d/lang.sh 呼叫進來的！這也是我們決定 bash 預設使用何種語系的重要設定檔！ 檔案裡最重要的就是 LANG/LC_ALL 這些個變數的設定啦！我們在前面的 locale 討論過這個檔案囉！ 自行回去瞧瞧先！
+
+- /usr/share/bash-completion/completions/*
+
+記得我們上頭談過 [tab] 的妙用吧？除了命令補齊、檔名補齊之外，還可以進行指令的選項/參數補齊功能！那就是從這個目錄裡面找到相對應的指令來處理的！ 其實這個目錄底下的內容是由 /etc/profile.d/bash_completion.sh 這個檔案載入的啦！
+
+反正你只要記得，bash 的 login shell 情況下所讀取的整體環境設定檔其實只有 /etc/profile，但是 /etc/profile 還會呼叫出其他的設定檔，所以讓我們的 bash 操作介面變的非常的友善啦！ 接下來，讓我們來瞧瞧，那麼個人偏好的設定檔又是怎麼回事？
+
+#### ~/.bash_profile (login shell 才會讀)
+
