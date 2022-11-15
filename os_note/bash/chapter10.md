@@ -898,3 +898,627 @@ Ubuntu 20.04.2 LTS \n \l
 
 #### ~/.bash_profile (login shell 才會讀)
 
+bash 在讀完了整體環境設定的 /etc/profile 並藉此呼叫其他設定檔後，接下來則是會讀取使用者的個人設定檔。 在 login shell 的 bash 環境中，所讀取的個人偏好設定檔其實主要有三個，依序分別是：
+
+- ~/.bash_profile
+- ~/.bash_login
+- ~/.profile
+
+```
+[dmtsai@study ~]$ cat ~/.bash_profile
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then    <==底下這三行在判斷並讀取 ~/.bashrc
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+PATH=$PATH:$HOME/.local/bin:$HOME/bin    <==底下這幾行在處理個人化設定
+export PATH
+```
+其實 bash 的 login shell 設定只會讀取上面三個檔案的其中一個， 而讀取的順序則是依照上面的順序。也就是說，如果 ~/.bash_profile 存在，那麼其他兩個檔案不論有無存在，都不會被讀取。 如果 ~/.bash_profile 不存在才會去讀取 ~/.bash_login，而前兩者都不存在才會讀取 ~/.profile 的意思。 會有這麼多的檔案，其實是因應其他 shell 轉換過來的使用者的習慣而已。 先讓我們來看一下 dmtsai 的 /home/dmtsai/.bash_profile 的內容是怎樣呢？
+
+這個檔案內有設定 PATH 這個變數喔！而且還使用了 export 將 PATH 變成環境變數呢！ 由於 PATH 在 /etc/profile 當中已經設定過，所以在這裡就以累加的方式增加使用者家目錄下的 ~/bin/ 為額外的執行檔放置目錄。這也就是說，你可以將自己建立的執行檔放置到你自己家目錄下的 ~/bin/ 目錄啦！ 那就可以直接執行該執行檔而不需要使用絕對/相對路徑來執行該檔案。
+
+這個檔案的內容比較有趣的地方在於 if ... then ... 那一段！那一段程式碼我們會在第十二章 shell script 談到，假設你現在是看不懂的。 該段的內容指的是『判斷家目錄下的 ~/.bashrc 存在否，若存在則讀入 ~/.bashrc 的設定』。 bash 設定檔的讀入方式比較有趣，主要是透過一個指令『 source 』來讀取的！ 也就是說 ~/.bash_profile 其實會再呼叫 ~/.bashrc 的設定內容喔！最後，我們來看看整個 login shell 的讀取流程：
+
+
+<div align=center><img src="/os_note/bash/picture/centos7_bashrc_1.gif"></div>
+<div align=center>圖10.4.1、login shell 的設定檔讀取流程</div>
+
+實線的的方向是主線流程，虛線的方向則是被呼叫的設定檔！從上面我們也可以清楚的知道，在 CentOS 的 login shell 環境下，最終被讀取的設定檔是『 ~/.bashrc 』這個檔案喔！所以，你當然可以將自己的偏好設定寫入該檔案即可。 底下我們還要討論一下 source 與 ~/.bashrc 喔！
+
+#### source ：讀入環境設定檔的指令
+
+由於 /etc/profile 與 ~/.bash_profile 都是在取得 login shell 的時候才會讀取的設定檔，所以， 如果你將自己的偏好設定寫入上述的檔案後，通常都是得登出再登入後，該設定才會生效。那麼，能不能直接讀取設定檔而不登
+出登入呢？ 可以的！那就得要利用 source 這個指令了！
+
+```
+[dmtsai@study ~]$ source 設定檔檔名
+
+範例：將家目錄的 ~/.bashrc 的設定讀入目前的 bash 環境中
+[dmtsai@study ~]$ source ~/.bashrc  <==底下這兩個指令是一樣的！
+[dmtsai@study ~]$  .  ~/.bashrc
+
+```
+
+利用 source 或小數點 (.) 都可以將設定檔的內容讀進來目前的 shell 環境中！ 舉例來說，我修改了 ~/.bashrc ，那麼不需要登出，立即以 source ~/.bashrc 就可以將剛剛最新設定的內容讀進來目前的環境中！很不錯吧！還有，包括 ~/bash_profile 以及 /etc/profile 的設定中， 很多時候也都是利用到這個 source (或小數點) 的功能喔！
+
+有沒有可能會使用到不同環境設定檔的時候？有啊！ 最常發生在一個人的工作環境分為多種情況的時候了！舉個例子來說，在鳥哥的大型主機中， 常常需要負責兩到三個不同的案子，每個案子所需要處理的環境變數訂定並不相同， 那麼鳥哥就將這兩三個案子分別編寫屬於該案子的環境變數設定檔案，當需要該環境時，就直接『 source 變數檔 』，如此一來，環境變數的設定就變的更簡便而靈活了！
+
+~/.bashrc (non-login shell 會讀)
+談完了 login shell 後，那麼 non-login shell 這種非登入情況取得 bash 操作介面的環境設定檔又是什麼？ 當你取得 non-login shell 時，該 bash 設定檔僅會讀取 ~/.bashrc 而已啦！那麼預設的 ~/.bashrc 內容是如何？
+
+```
+kevin@ubuntu:~/os$ cat ~/.bashrc
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=1000
+HISTFILESIZE=2000
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# If set, the pattern "**" used in a pathname expansion context will
+# match all files and zero or more directories and subdirectories.
+#shopt -s globstar
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# set a fancy prompt (non-color, unless we know we "want" color)
+case "$TERM" in
+    xterm-color|*-256color) color_prompt=yes;;
+esac
+
+# uncomment for a colored prompt, if the terminal has the capability; turned
+# off by default to not distract the user: the focus in a terminal window
+# should be on the output of commands, not on the prompt
+#force_color_prompt=yes
+
+if [ -n "$force_color_prompt" ]; then
+    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+        # We have color support; assume it's compliant with Ecma-48
+        # (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+        # a case would tend to support setf rather than setaf.)
+        color_prompt=yes
+    else
+        color_prompt=
+    fi
+fi
+
+if [ "$color_prompt" = yes ]; then
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+else
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+fi
+unset color_prompt force_color_prompt
+
+# If this is an xterm set the title to user@host:dir
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
+
+# enable color support of ls and also add handy aliases
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+    #alias dir='dir --color=auto'
+    #alias vdir='vdir --color=auto'
+
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# colored GCC warnings and errors
+#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# some more ls aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+source /opt/ros/melodic/setup.bash
+export PATH=/usr/lib/ccache:$PATH
+export PATH="$HOME/qemu-5.0.0:$PATH"
+export PATH="$HOME/qemu-5.0.0/riscv64-softmmu:$PATH"
+export PATH="$HOME/qemu-5.0.0/riscv64-linux-user:$PATH"
+export PATH="/usr/local/riscv64-unknown-elf-gcc/bin:$PATH"
+export PATH="/usr/local/riscv64-linux-musl-cross/bin:$PATH"
+```
+
+此外，咱們的 CentOS 7.x 還會主動的呼叫 /etc/bashrc 這個檔案喔！為什麼需要呼叫 /etc/bashrc 呢？ 因為 /etc/bashrc 幫我們的 bash 定義出底下的資料：
+
+依據不同的 UID 規範出 umask 的值；
+依據不同的 UID 規範出提示字元 (就是 PS1 變數)；
+呼叫 /etc/profile.d/*.sh 的設定
+你要注意的是，這個 /etc/bashrc 是 CentOS 特有的 (其實是 Red Hat 系統特有的)，其他不同的 distributions 可能會放置在不同的檔名就是了。由於這個 ~/.bashrc 會呼叫 /etc/bashrc 及 /etc/profile.d/*.sh ， 所以，萬一你沒有 ~/.bashrc (可能自己不小心將他刪除了)，那麼你會發現你的 bash 提示字元可能會變成這個樣子：
+
+#### 其他相關設定檔
+
+事實上還有一些設定檔可能會影響到你的 bash 操作的，底下就來談一談：
+
+/etc/man_db.conf
+這個檔案乍看之下好像跟 bash 沒相關性，但是對於系統管理員來說， 卻也是很重要的一個檔案！這的檔案的內容『規範了使用 man 的時候， man page 的路徑到哪裡去尋找！』所以說的簡單一點，這個檔案規定了下達 man 的時候，該去哪裡查看資料的路徑設定！
+
+那麼什麼時候要來修改這個檔案呢？如果你是以 tarball 的方式來安裝你的資料，那麼你的 man page 可能會放置在 /usr/local/softpackage/man 裡頭，那個 softpackage 是你的套件名稱， 這個時候你就得以手動的方式將該路徑加到 /etc/man_db.conf 裡頭，否則使用 man 的時候就會找不到相關的說明檔囉。
+
+~/.bash_history
+還記得我們在歷史命令提到過這個檔案吧？預設的情況下， 我們的歷史命令就記錄在這裡啊！而這個檔案能夠記錄幾筆資料，則與 HISTFILESIZE 這個變數有關啊。每次登入 bash 後，bash 會先讀取這個檔案，將所有的歷史指令讀入記憶體， 因此，當我們登入 bash 後就可以查知上次使用過哪些指令囉。至於更多的歷史指令， 請自行回去參考喔！
+
+~/.bash_logout
+這個檔案則記錄了『當我登出 bash 後，系統再幫我做完什麼動作後才離開』的意思。 你可以去讀取一下這個檔案的內容，預設的情況下，登出時， bash 只是幫我們清掉螢幕的訊息而已。 不過，你也可以將一些備份或者是其他你認為重要的工作寫在這個檔案中 (例如清空暫存檔)， 那麼當你離開 Linux 的時候，就可以解決一些煩人的事情囉！
+
+### 10.4.4 終端機的環境設定： stty, set
+
+我們在第四章首次登入 Linux 時就提過，可以在 tty1 ~ tty6 這六個文字介面的終端機 (terminal) 環境中登入，登入的時候我們可以取得一些字元設定的功能喔！ 舉例來說，我們可以利用倒退鍵 (backspace，就是那個←符號的按鍵) 來刪除命令列上的字元， 也可以使用 [ctrl]+c 來強制終止一個指令的運行，當輸入錯誤時，就會有聲音跑出來警告。這是怎麼辦到的呢？ 很簡單啊！因為登入終端機的時候，會自動的取得一些終端機的輸入環境的設定啊！
+
+事實上，目前我們使用的 Linux distributions 都幫我們作了最棒的使用者環境了， 所以大家可以不用擔心操作環境的問題。不過，在某些 Unix like 的機器中，還是可能需要動用一些手腳， 才能夠讓我們的輸入比較快樂～舉例來說，利用 [backspace] 刪除，要比利用 [Del] 按鍵來的順手吧！ 但是某些 Unix 偏偏是以 [del] 來進行字元的刪除啊！所以，這個時候就可以動動手腳囉～
+
+那麼如何查閱目前的一些按鍵內容呢？可以利用 stty (setting tty 終端機的意思) 呢！ stty 也可以幫助設定終端機的輸入按鍵代表意義
+
+```
+[dmtsai@study ~]$ stty [-a]
+選項與參數：
+-a  ：將目前所有的 stty 參數列出來；
+
+kevin@ubuntu:~/os$ stty -a
+speed 38400 baud; rows 17; columns 219; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = M-^?; eol2 = M-^?; swtch = <undef>; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R; werase = ^W; lnext = ^V; discard = ^O; min = 1; time = 0;
+-parenb -parodd -cmspar cs8 hupcl -cstopb cread -clocal -crtscts
+-ignbrk brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl ixon -ixoff -iuclc ixany imaxbel iutf8
+opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0
+isig icanon iexten echo echoe echok -echonl -noflsh -xcase -tostop -echoprt echoctl echoke -flusho -extproc
+```
+
+我們可以利用 stty -a 來列出目前環境中所有的按鍵列表，在上頭的列表當中，需要注意的是特殊字體那幾個， 此外，如果出現 ^ 表示 [Ctrl] 那個按鍵的意思。舉例來說， intr = ^C 表示利用 [ctrl] + c 來達成的。幾個重要的代表意義是：
+
+intr  : 送出一個 interrupt (中斷) 的訊號給目前正在 run 的程序 (就是終止囉！)；
+quit  : 送出一個 quit 的訊號給目前正在 run 的程序；
+erase : 向後刪除字元，
+kill  : 刪除在目前指令列上的所有文字；
+eof   : End of file 的意思，代表『結束輸入』。
+start : 在某個程序停止後，重新啟動他的 output
+stop  : 停止目前螢幕的輸出；
+susp  : 送出一個 terminal stop 的訊號給正在 run 的程序。
+記不記得我們在第四章講過幾個 Linux 熱鍵啊？沒錯！ 就是這個 stty 設定值內的 intr([ctrl]+c) / eof([ctrl]+d) 囉～至於刪除字元，就是 erase 那個設定值啦！ 如果你想要用 [ctrl]+h 來進行字元的刪除，那麼可以下達：
+
+除了 stty 之外，其實我們的 bash 還有自己的一些終端機設定值呢！那就是利用 set 來設定的！ 我們之前提到一些變數時，可以利用 set 來顯示，除此之外，其實 set 還可以幫我們設定整個指令輸出/輸入的環境。 例如記錄歷史命令、顯示錯誤內容等等。
+
+```
+[dmtsai@study ~]$ set [-uvCHhmBx]
+選項與參數：
+-u  ：預設不啟用。若啟用後，當使用未設定變數時，會顯示錯誤訊息；
+-v  ：預設不啟用。若啟用後，在訊息被輸出前，會先顯示訊息的原始內容；
+-x  ：預設不啟用。若啟用後，在指令被執行前，會顯示指令內容(前面有 ++ 符號)
+-h  ：預設啟用。與歷史命令有關；
+-H  ：預設啟用。與歷史命令有關；
+-m  ：預設啟用。與工作管理有關；
+-B  ：預設啟用。與刮號 [] 的作用有關；
+-C  ：預設不啟用。若使用 > 等，則若檔案存在時，該檔案不會被覆蓋。
+
+範例一：顯示目前所有的 set 設定值
+[dmtsai@study ~]$ echo $-
+himBH
+# 那個 $- 變數內容就是 set 的所有設定啦！ bash 預設是 himBH 喔！
+kevin@ubuntu:~/os$ echo $-
+himBHs    
+
+範例二：設定 "若使用未定義變數時，則顯示錯誤訊息" 
+[dmtsai@study ~]$ set -u
+[dmtsai@study ~]$ echo $vbirding
+-bash: vbirding: unbound variable
+# 預設情況下，未設定/未宣告 的變數都會是『空的』，不過，若設定 -u 參數，
+# 那麼當使用未設定的變數時，就會有問題啦！很多的 shell 都預設啟用 -u 參數。
+# 若要取消這個參數，輸入 set +u 即可！
+
+範例三：執行前，顯示該指令內容。
+[dmtsai@study ~]$ set -x
+++ printf '\033]0;%s@%s:%s\007' dmtsai study '~'    # 這個是在列出提示字元的控制碼！
+[dmtsai@study ~]$ echo ${HOME}
++ echo /home/dmtsai
+/home/dmtsai
+++ printf '\033]0;%s@%s:%s\007' dmtsai study '~'
+# 看見否？要輸出的指令都會先被列印到螢幕上喔！前面會多出 + 的符號！
+
+kevin@ubuntu:~/os$ echo ${HOME}
+++ __vsc_preexec_only -x
+++ '[' 0 = 0 ']'
+++ __vsc_in_command_execution=1
+++ __vsc_preexec
+++ __vsc_initialized=1
+++ [[ ! echo ${HOME} =~ ^__vsc_prompt* ]]
+++ '[' 0 = 1 ']'
+++ __vsc_current_command='echo ${HOME}'
+++ __vsc_command_output_start
+++ builtin printf '\033]633;C\007'
+++ builtin printf '\033]633;E;%s\007' 'echo ${HOME}'
++ echo /home/kevin
+/home/kevin
++++ __vsc_preexec_only /home/kevin
++++ '[' 1 = 0 ']'
+++ __vsc_prompt_cmd
+++ __vsc_status=0
+++ __vsc_precmd
+++ __vsc_command_complete 0
+++ '[' 'echo ${HOME}' = '' ']'
+++ builtin printf '\033]633;D;%s\007' 0
+++ __vsc_update_cwd
+++ builtin printf '\033]633;P;Cwd=%s\007' /home/kevin/os
+++ __vsc_current_command=
+++ __vsc_update_prompt
+++ '[' 1 = 1 ']'
+++ [[ \[\]\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ \[\] == '' ]]
+++ [[ \[\]\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ \[\] != \\\[\]\6\3\3\;\A\\\\]\\\[\\\e\]\0\;\\\u\@\\\h\:\ \\\w\\\a\\\]\$\{\d\e\b\i\a\n\_\c\h\r\o\o\t\:\+\(\$\d\e\b\i\a\n\_\c\h\r\o\o\t\)\}\\\[\\\0\3\3\[\0\1\;\3\2\m\\\]\\\u\@\\\h\\\[\\\0\3\3\[\0\0\m\\\]\:\\\[\\\0\3\3\[\0\1\;\3\4\m\\\]\\\w\\\[\\\0\3\3\[\0\0\m\\\]\\\$\ \\\[\]\6\3\3\;\B\\\\] ]]
+++ [[ \[\]> \[\] == '' ]]
+++ [[ \[\]> \[\] != \\\[\]\6\3\3\;\F\\\\]\>\ \\\[\]\6\3\3\;\G\\\\] ]]
+++ __vsc_in_command_execution=0
+```
+
+ **最後，我們將 bash 預設的組合鍵給他彙整如下**：
+
+ <div align=center><img src="/os_note/bash/picture/屏幕截图%202022-11-15%20171236.png"></div>
+ <div align=center>bash 預設的組合鍵</div>
+
+ ### 10.4.5 萬用字元與特殊符號
+
+ 在 bash 的操作環境中還有一個非常有用的功能，那就是萬用字元 (wildcard) ！ 我們利用 bash 處理資料就更方便了！底下我們列出一些常用的萬用字元喔：
+ <div align=center><img src="/os_note/bash/picture/屏幕截图%202022-11-15%20171535.png"></div>
+
+ ```
+ [dmtsai@study ~]$ LANG=C              <==由於與編碼有關，先設定語系一下
+
+範例一：找出 /etc/ 底下以 cron 為開頭的檔名
+[dmtsai@study ~]$ ll -d /etc/cron*    <==加上 -d 是為了僅顯示目錄而已
+
+kevin@ubuntu:~/os$ ls os*
+os_experiment:
+boot_experiment  lesson1  ucore_lab
+
+os_note:
+bash  compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file  vim
+
+範例二：找出 /etc/ 底下檔名『剛好是五個字母』的檔名
+[dmtsai@study ~]$ ll -d /etc/?????    <==由於 ? 一定有一個，所以五個 ? 就對了
+
+kevin@ubuntu:~/os$ ls ???????
+路线图.jpg
+
+os_note:
+bash  compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file  vim
+
+範例三：找出 /etc/ 底下檔名含有數字的檔名
+[dmtsai@study ~]$ ll -d /etc/*[0-9]*  <==記得中括號左右兩邊均需 *
+
+範例四：找出 /etc/ 底下，檔名開頭非為小寫字母的檔名：
+[dmtsai@study ~]$ ll -d /etc/[^a-z]*  <==注意中括號左邊沒有 *
+
+範例五：將範例四找到的檔案複製到 /tmp/upper 中
+[dmtsai@study ~]$ mkdir /tmp/upper; cp -a /etc/[^a-z]* /tmp/upper
+```
+
+除了萬用字元之外，bash 環境中的特殊符號有哪些呢？底下我們先彙整一下：
+
+<div align=center><img src="/os_note/bash/picture/屏幕截图%202022-11-15%20172124.png"></div>
+
+以上為 bash 環境中常見的特殊符號彙整！**理論上，你的『檔名』盡量不要使用到上述的字元啦**！
+
+## 10.5 資料流重導向
+
+資料流重導向 (redirect) 由字面上的意思來看，好像就是將『資料給他傳導到其他地方去』的樣子？ 沒錯～**資料流重導向就是將某個指令執行後應該要出現在螢幕上的資料**， 給他傳輸到其他的地方，例如檔案或者是裝置 (例如印表機之類的)！這玩意兒在 Linux 的文字模式底下可重要的！ 尤其是如果我們想要將某些資料儲存下來時，就更有用了！
+
+### 10.5.1 什麼是資料流重導向
+
+什麼是資料流重導向啊？這得要由指令的執行結果談起！一般來說，如果你要執行一個指令，通常他會是這樣的：
+
+<div align=center><img src="/os_note/bash/picture/centos7_redirection.jpg"></div>
+<div align=center>圖10.5.1、指令執行過程的資料傳輸情況</div>
+
+我們執行一個指令的時候，這個指令可能會由檔案讀入資料，經過處理之後，再將資料輸出到螢幕上。 在上圖當中， standard output 與 standard error output 分別代表『標準輸出 (STDOUT)』與『標準錯誤輸出 (STDERR)』， 這兩個玩意兒預設都是輸出到螢幕上面來的啊！那麼什麼是標準輸出與標準錯誤輸出呢？
+
+#### standard output 與 standard error output
+
+簡單的說，標準輸出指的是『指令執行所回傳的正確的訊息』，而標準錯誤輸出可理解為『 指令執行失敗後，所回傳的錯誤訊息』。舉個簡單例子來說，我們的系統預設有 /etc/crontab 但卻無 /etc/vbirdsay， 此時若下達『 cat /etc/crontab /etc/vbirdsay 』這個指令時，cat 會進行：
+
+**標準輸出：讀取 /etc/crontab 後，將該檔案內容顯示到螢幕上**；
+**標準錯誤輸出：因為無法找到 /etc/vbirdsay，因此在螢幕上顯示錯誤訊息**
+不管正確或錯誤的資料都是預設輸出到螢幕上，所以螢幕當然是亂亂的！那能不能透過某些機制將這兩股資料分開呢？ 當然可以啊！那就是資料流重導向的功能啊！資料流重導向可以將 standard output (簡稱 stdout) 與 standard error output (簡稱 stderr) 分別傳送到其他的檔案或裝置去，而分別傳送所用的特殊字元則如下所示：
+
+標準輸入　　(stdin) ：代碼為 0 ，使用 < 或 << ；
+標準輸出　　(stdout)：代碼為 1 ，使用 > 或 >> ；
+標準錯誤輸出(stderr)：代碼為 2 ，使用 2> 或 2>> ；
+為了理解 stdout 與 stderr ，我們先來進行一個範例的練習：
+
+```
+範例一：觀察你的系統根目錄 (/) 下各目錄的檔名、權限與屬性，並記錄下來
+[dmtsai@study ~]$ ll /  <==此時螢幕會顯示出檔名資訊
+[dmtsai@study ~]$ ll / > ~/rootfile <==螢幕並無任何資訊
+[dmtsai@study ~]$ ll  ~/rootfile <==有個新檔被建立了！
+-rw-rw-r--. 1 dmtsai dmtsai 1078 Jul  9 18:51 /home/dmtsai/rootfile
+```
+
+怪了！螢幕怎麼會完全沒有資料呢？這是因為原本『 ll / 』所顯示的資料已經被重新導向到 ~/rootfile 檔案中了！ 那個 ~/rootfile 的檔名可以隨便你取。如果你下達『 cat ~/rootfile 』那就可以看到原本應該在螢幕上面的資料囉。 如果我再次下達：『 ll /home > ~/rootfile 』後，那個 ~/rootfile 檔案的內容變成什麼？ 他將變成『僅有 ll /home 的資料』而已！咦！原本的『 ll / 』資料就不見了嗎？是的！因為該檔案的建立方式是：
+
+該檔案 (本例中是 ~/rootfile) 若不存在，系統會自動的將他建立起來，但是
+當這個檔案存在的時候，那麼系統就會先將這個檔案內容清空，然後再將資料寫入！
+也就是若以 > 輸出到一個已存在的檔案中，那個檔案就會被覆蓋掉囉！
+那如果我想要將資料累加而不想要將舊的資料刪除，那該如何是好？利用兩個大於的符號 (>>) 就好啦！以上面的範例來說，你應該要改成『 ll / >> ~/rootfile 』即可。 如此一來，當 (1) ~/rootfile 不存在時系統會主動建立這個檔案；(2)若該檔案已存在， 則資料會在該檔案的最下方累加進去！
+ 
+上面談到的是 standard output 的正確資料，那如果是 standard error output 的錯誤資料呢？那就透過 2> 及 2>> 囉！同樣是覆蓋 (2>) 與累加 (2>>) 的特性！我們在剛剛才談到 stdout 代碼是 1 而 stderr 代碼是 2 ， 所以這個 2> 是很容易理解的，而如果僅存在 > 時，則代表預設的代碼 1 囉！也就是說：
+
+1> ：以覆蓋的方法將『正確的資料』輸出到指定的檔案或裝置上；
+1>>：以累加的方法將『正確的資料』輸出到指定的檔案或裝置上；
+2> ：以覆蓋的方法將『錯誤的資料』輸出到指定的檔案或裝置上；
+2>>：以累加的方法將『錯誤的資料』輸出到指定的檔案或裝置上；
+
+要注意喔，『 1>> 』以及『 2>> 』中間是沒有空格的！OK！有些概念之後讓我們繼續聊一聊這傢伙怎麼應用吧！ 當你以一般身份執行 find 這個指令的時候，由於權限的問題可能會產生一些錯誤資訊。例如執行『 find / -name testing 』時，可能會產生類似『 find: /root: Permission denied 』之類的訊息。 例如底下這個範例：
+```
+範例二：利用一般身份帳號搜尋 /home 底下是否有名為 .bashrc 的檔案存在
+[dmtsai@study ~]$ find /home -name .bashrc <==身份是 dmtsai 喔！
+find: '/home/arod': Permission denied    <== Standard error output
+find: '/home/alex': Permission denied    <== Standard error output
+/home/dmtsai/.bashrc                     <== Standard output
+
+kevin@ubuntu:~/os$ find /home -name .bashrc
+/home/kevin/.bashrc
+find: ‘/home/kevin/.dbus’: Permission denied
+find: ‘/home/kevin/.gvfs’: Permission denied
+find: ‘/home/kevin/.cache/dconf’: Permission denied
+find: ‘/home/kevin/.cache/doc’: Permission denied
+find: ‘/home/kevin/.config/enchant’: Permission denied
+```
+由於 /home 底下還有我們之前建立的帳號存在，那些帳號的家目錄你當然不能進入啊！所以就會有錯誤及正確資料了。 好了，那麼假如我想要將資料輸出到 list 這個檔案中呢？執行『 find /home -name .bashrc > list 』 會有什麼結果？呵呵，你會發現 list 裡面存了剛剛那個『正確』的輸出資料， 至於螢幕上還是會有錯誤的訊息出現呢！傷腦筋！如果想要將正確的與錯誤的資料分別存入不同的檔案中需要怎麼做？
+```
+範例三：承範例二，將 stdout 與 stderr 分存到不同的檔案去
+[dmtsai@study ~]$ find /home -name .bashrc > list_right 2> list_error
+
+kevin@ubuntu:~/os$ find /home -name .bashrc > list_right 2> list_error
+kevin@ubuntu:~/os$ ls
+'\'   list_error   list_right   os_experiment   os_note   路线图.jpg
+kevin@ubuntu:~/os$ file list_error 
+list_error: UTF-8 Unicode text
+kevin@ubuntu:~/os$ cat list_error 
+find: ‘/home/kevin/.dbus’: Permission denied
+find: ‘/home/kevin/.gvfs’: Permission denied
+find: ‘/home/kevin/.cache/dconf’: Permission denied
+find: ‘/home/kevin/.cache/doc’: Permission denied
+find: ‘/home/kevin/.config/enchant’: Permission denied
+kevin@ubuntu:~/os$ cat list_right 
+/home/kevin/.bashrc
+```
+
+注意喔，此時『螢幕上不會出現任何訊息』！因為剛剛執行的結果中，有 Permission 的那幾行錯誤資訊都會跑到 list_error 這個檔案中，至於正確的輸出資料則會存到 list_right 這個檔案中囉！這樣可以瞭解了嗎？ 如果有點混亂的話，去休息一下再回來看看吧！
+
+#### /dev/null 垃圾桶黑洞裝置與特殊寫法
+想像一下，如果我知道錯誤訊息會發生，所以要將錯誤訊息忽略掉而不顯示或儲存呢？ 這個時候黑洞裝置 /dev/null 就很重要了！這個 /dev/null 可以吃掉任何導向這個裝置的資訊喔！將上述的範例修訂一下：
+
+```
+範例四：承範例三，將錯誤的資料丟棄，螢幕上顯示正確的資料
+[dmtsai@study ~]$ find /home -name .bashrc 2> /dev/null
+/home/dmtsai/.bashrc  <==只有 stdout 會顯示到螢幕上， stderr 被丟棄了
+```
+
+再想像一下，如果我要將正確與錯誤資料通通寫入同一個檔案去呢？這個時候就得要使用特殊的寫法了！ 我們同樣用底下的案例來說明：
+
+```
+範例五：將指令的資料全部寫入名為 list 的檔案中
+[dmtsai@study ~]$ find /home -name .bashrc > list 2> list  <==錯誤
+[dmtsai@study ~]$ find /home -name .bashrc > list 2>&1     <==正確
+[dmtsai@study ~]$ find /home -name .bashrc &> list         <==正確
+```
+
+上述表格第一行錯誤的原因是，由於兩股資料同時寫入一個檔案，又沒有使用特殊的語法， 此時兩股資料可能會交叉寫入該檔案內，造成次序的錯亂。所以雖然最終 list 檔案還是會產生，但是裡面的資料排列就會怪怪的，而不是原本螢幕上的輸出排序。 至於寫入同一個檔案的特殊語法如上表所示，你可以使用 2>&1 也可以使用 &> ！ 一般來說，鳥哥比較習慣使用 2>&1 的語法啦！
+
+#### standard input ： < 與 <<
+
+瞭解了 stderr 與 stdout 後，那麼那個 < 又是什麼呀？呵呵！以最簡單的說法來說， 那就是『將原本需要由鍵盤輸入的資料，改由檔案內容來取代』的意思。 我們先由底下的 cat 指令操作來瞭解一下什麼叫做『鍵盤輸入』吧！
+
+```
+範例六：利用 cat 指令來建立一個檔案的簡單流程
+[dmtsai@study ~]$ cat > catfile
+testing
+cat file test
+<==這裡按下 [ctrl]+d 來離開
+
+[dmtsai@study ~]$ cat catfile
+testing
+cat file test
+```
+
+由於加入 > 在 cat 後，所以那個 catfile 會被主動的建立，而內容就是剛剛鍵盤上面輸入的那兩行資料了。 唔！那我能不能用純文字檔取代鍵盤的輸入，也就是說，用某個檔案的內容來取代鍵盤的敲擊呢？ 可以的！如下所示：
+
+```
+範例七：用 stdin 取代鍵盤的輸入以建立新檔案的簡單流程
+[dmtsai@study ~]$ cat > catfile < ~/.bashrc
+[dmtsai@study ~]$ ll catfile ~/.bashrc
+-rw-r--r--. 1 dmtsai dmtsai 231 Mar  6 06:06 /home/dmtsai/.bashrc
+-rw-rw-r--. 1 dmtsai dmtsai 231 Jul  9 18:58 catfile
+# 注意看，這兩個檔案的大小會一模一樣！幾乎像是使用 cp 來複製一般！
+```
+
+這東西非常的有幫助！尤其是用在類似 mail 這種指令的使用上。 理解 < 之後，再來則是怪可怕一把的 << 這個連續兩個小於的符號了。 他代表的是『結束的輸入字元』的意思！舉例來講：『我要用 cat 直接將輸入的訊息輸出到 catfile 中， 且當由鍵盤輸入 eof 時，該次輸入就結束』，那我可以這樣做：
+
+```
+[dmtsai@study ~]$ cat > catfile << "eof"
+> This is a test.
+> OK now stop
+> eof  <==輸入這關鍵字，立刻就結束而不需要輸入 [ctrl]+d
+
+[dmtsai@study ~]$ cat catfile
+This is a test.
+OK now stop     <==只有這兩行，不會存在關鍵字那一行！
+```
+
+看到了嗎？利用 << 右側的控制字元，我們可以終止一次輸入， 而不必輸入 [ctrl]+d 來結束哩！這對程式寫作很有幫助喔！好了，那麼為何要使用命令輸出重導向呢？我們來說一說吧！
+
+螢幕輸出的資訊很重要，而且我們需要將他存下來的時候；
+背景執行中的程式，不希望他干擾螢幕正常的輸出結果時；
+一些系統的例行命令 (例如寫在 /etc/crontab 中的檔案) 的執行結果，希望他可以存下來時；
+一些執行命令的可能已知錯誤訊息時，想以『 2> /dev/null 』將他丟掉時；
+錯誤訊息與正確訊息需要分別輸出時。
+當然還有很多的功能的，最簡單的就是網友們常常問到的：『為何我的 root 都會收到系統 crontab 寄來的錯誤訊息呢』這個咚咚是常見的錯誤， 而如果我們已經知道這個錯誤訊息是可以忽略的時候，嗯！『 2> errorfile 』這個功能就很重要了吧！ 瞭解了嗎？
+
+### 10.5.2 命令執行的判斷依據： ; , &&, ||
+
+在某些情況下，很多指令我想要一次輸入去執行，而不想要分次執行時，該如何是好？基本上你有兩個選擇， 一個是透過第十二章要介紹的 shell script 撰寫腳本去執行，一種則是透過底下的介紹來一次輸入多重指令喔！
+
+#### cmd ; cmd (不考慮指令相關性的連續指令下達)
+
+在某些時候，我們希望可以一次執行多個指令，例如在關機的時候我希望可以先執行兩次 sync 同步化寫入磁碟後才 shutdown 電腦，那麼可以怎麼作呢？這樣做呀：
+```
+kevin@ubuntu:~/os$ ls ;cd os_note/; ls; cd ..
+'\'   os_experiment   os_note   路线图.jpg
+bash  compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file  vim
+```
+在指令與指令中間利用分號;來隔開，這樣一來，分號前的指令執行完後就會立刻接著執行後面的指令了。 這真是方便啊～再來，換個角度來想，萬一我想要在某個目錄底下建立一個檔案，也就是說，如果該目錄存在的話， 那我才建立這個檔案，如果不存在，那就算了。也就是說這兩個指令彼此之間是有相關性的， 前一個指令是否成功的執行與後一個指令是否要執行有關！那就得動用到 && 或 || 囉
+
+#### $? (指令回傳值) 與 && 或 ||
+如同上面談到的，兩個指令之間有相依性，而這個相依性主要判斷的地方就在於前一個指令執行的結果是否正確。 還記得本章之前我們曾介紹過指令回傳值吧！嘿嘿！沒錯，您真聰明！就是透過這個回傳值啦！ 再複習一次『若前一個指令執行的結果為正確，在 Linux 底下會回傳一個 $? = 0 的值』。 那麼我們怎麼透過這個回傳值來判斷後續的指令是否要執行呢？這就得要藉由『 && 』及『 || 』的幫忙了！ 注意喔，兩個 & 之間是沒有空格的！那個 | 則是 [Shift]+[\] 的按鍵結果。
+
+<div align=center><img src="/os_note/bash/picture/屏幕截图%202022-11-15%20191834.png"></div>
+
+上述的 cmd1 及 cmd2 都是指令。好了，回到我們剛剛假想的情況，就是想要： (1)先判斷一個目錄是否存在； (2)若存在才在該目錄底下建立一個檔案。由於我們尚未介紹如何判斷式 (test) 的使用，在這裡我們使用 ls 以及回傳值來判斷目錄是否存在啦！ 讓我們進行底下這個練習看看：
+```
+kevin@ubuntu:~/os$ ls os_note/test && touch os_note/test/testfile
+ls: cannot access 'os_note/test': No such file or directory
+kevin@ubuntu:~/os$ ls os_note/test || mkdir -p os_note/test ; ls os_note/
+ls: cannot access 'os_note/test': No such file or directory
+bash  compress  elementary_knowledge  install_centos  linux_command  linux_environment  linux_file  test  vim
+```
+
+由於Linux 底下的指令都是由左往右執行的，所以範例三有幾種結果我們來分析一下：
+
+## 10.6 管線命令 (pipe)
+
+就如同前面所說的， bash 命令執行的時候有輸出的資料會出現！ 那麼如果這群資料必需要經過幾道手續之後才能得到我們所想要的格式，應該如何來設定？ 這就牽涉到管線命令的問題了 (pipe) ，管線命令使用的是『 | 』這個界定符號！ 另外，管線命令與『連續下達命令』是不一樣的呦！ 這點底下我們會再說明。底下我們先舉一個例子來說明一下簡單的管線命令。
+
+假設我們想要知道 /etc/ 底下有多少檔案，那麼可以利用 ls /etc 來查閱，不過， 因為 /etc 底下的檔案太多，導致一口氣就將螢幕塞滿了～不知道前面輸出的內容是啥？此時，我們可以透過 less 指令的協助，利用：
+```
+kevin@ubuntu:~/os$ ls -al /etc | less
+```
+如此一來，使用 ls 指令輸出後的內容，就能夠被 less 讀取，並且利用 less 的功能，我們就能夠前後翻動相關的資訊了！很方便是吧？我們就來瞭解一下這個管線命令『 | 』的用途吧！ 其實這個管線命令『 | 』僅能處理經由前面一個指令傳來的正確資訊，也就是 standard output 的資訊，對於 stdandard error 並沒有直接處理的能力。那麼整體的管線命令可以使用下圖表示：
+
+<div align=center><img src="/os_note/bash/picture/0320bash_3.png"></div>
+<div align=center>圖10.6.1、管線命令的處理示意圖</div>
+
+在每個管線後面接的第一個資料必定是『指令』喔！而且這個指令必須要能夠接受 standard input 的資料才行，這樣的指令才可以是為『管線命令』，例如 less, more, head, tail 等都是可以接受 standard input 的管線命令啦。至於例如 ls, cp, mv 等就不是管線命令了！因為 ls, cp, mv 並不會接受來自 stdin 的資料。 也就是說，管線命令主要有兩個比較需要注意的地方：
+
+管線命令僅會處理 standard output，對於 standard error output 會予以忽略
+管線命令必須要能夠接受來自前一個指令的資料成為 standard input 繼續處理才行。
+
+多說無益，讓我們來玩一些管線命令吧！底下的咚咚對系統管理非常有幫助喔！
+
+### 10.6.1 擷取命令： cut, grep
+
+什麼是擷取命令啊？說穿了，就是將一段資料經過分析後，取出我們所想要的。或者是經由分析關鍵字，取得我們所想要的那一行！ 不過，要注意的是，一般來說，擷取訊息通常是針對『一行一行』來分析的， 並不是整篇訊息分析的喔～底下我們介紹兩個很常用的訊息擷取命令：
+
+#### cut
+
+cut 不就是『切』嗎？沒錯啦！這個指令可以將一段訊息的某一段給他『切』出來～ 處理的訊息是以『行』為單位喔！底下我們就來談一談：
+
+```
+[dmtsai@study ~]$ cut -d'分隔字元' -f fields <==用於有特定分隔字元
+[dmtsai@study ~]$ cut -c 字元區間            <==用於排列整齊的訊息
+選項與參數：
+-d  ：後面接分隔字元。與 -f 一起使用；
+-f  ：依據 -d 的分隔字元將一段訊息分割成為數段，用 -f 取出第幾段的意思；
+-c  ：以字元 (characters) 的單位取出固定字元區間；
+
+範例一：將 PATH 變數取出，我要找出第五個路徑。
+[dmtsai@study ~]$ echo ${PATH}
+/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/dmtsai/.local/bin:/home/dmtsai/bin
+#      1      |    2   |       3       |    4    |           5           |      6         |
+kevin@ubuntu:~/os$ echo ${PATH}
+/usr/local/riscv64-linux-musl-cross/bin:/usr/local/riscv64-unknown-elf-gcc/bin:/home/kevin/qemu-5.0.0/riscv64-linux-user:/home/kevin/qemu-5.0.0/riscv64-softmmu:/home/kevin/qemu-5.0.0:/usr/lib/ccache:/opt/ros/melodic/bin:/home/kevin/.vscode-server/bin/8fa188b2b301d36553cbc9ce1b0a146ccb93351f/bin/remote-cli:/usr/local/riscv64-linux-musl-cross/bin:/usr/local/riscv64-unknown-elf-gcc/bin:/home/kevin/qemu-5.0.0/riscv64-linux-user:/home/kevin/qemu-5.0.0/riscv64-softmmu:/home/kevin/qemu-5.0.0:/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+
+[dmtsai@study ~]$ echo ${PATH} | cut -d ':' -f 5
+# 如同上面的數字顯示，我們是以『 : 』作為分隔，因此會出現 /home/dmtsai/.local/bin
+kevin@ubuntu:~/os$ echo ${PATH} | cut -d ':' -f 5
+/home/kevin/qemu-5.0.0
+
+# 那麼如果想要列出第 3 與第 5 呢？，就是這樣：
+[dmtsai@study ~]$ echo ${PATH} | cut -d ':' -f 3,5
+kevin@ubuntu:~/os$ echo ${PATH} | cut -d ':' -f 4,5
+/home/kevin/qemu-5.0.0/riscv64-softmmu:/home/kevin/qemu-5.0.0
+
+範例二：將 export 輸出的訊息，取得第 12 字元以後的所有字串
+[dmtsai@study ~]$ export
+declare -x HISTCONTROL="ignoredups"
+declare -x HISTSIZE="1000"
+declare -x HOME="/home/dmtsai"
+declare -x HOSTNAME="study.centos.vbird"
+.....(其他省略).....
+# 注意看，每個資料都是排列整齊的輸出！如果我們不想要『 declare -x 』時，就得這麼做：
+
+[dmtsai@study ~]$ export | cut -c 12-
+HISTCONTROL="ignoredups"
+HISTSIZE="1000"
+HOME="/home/dmtsai"
+HOSTNAME="study.centos.vbird"
+.....(其他省略).....
+# 知道怎麼回事了吧？用 -c 可以處理比較具有格式的輸出資料！
+# 我們還可以指定某個範圍的值，例如第 12-20 的字元，就是 cut -c 12-20 等等！
+
+範例三：用 last 將顯示的登入者的資訊中，僅留下使用者大名
+[dmtsai@study ~]$ last
+root   pts/1    192.168.201.101  Sat Feb  7 12:35   still logged in
+root   pts/1    192.168.201.101  Fri Feb  6 12:13 - 18:46  (06:33)
+root   pts/1    192.168.201.254  Thu Feb  5 22:37 - 23:53  (01:16)
+# last 可以輸出『帳號/終端機/來源/日期時間』的資料，並且是排列整齊的
+
+[dmtsai@study ~]$ last | cut -d ' ' -f 1
+# 由輸出的結果我們可以發現第一個空白分隔的欄位代表帳號，所以使用如上指令：
+# 但是因為 root   pts/1 之間空格有好幾個，並非僅有一個，所以，如果要找出 
+# pts/1 其實不能以 cut -d ' ' -f 1,2 喔！輸出的結果會不是我們想要的。
+```
