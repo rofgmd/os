@@ -1516,6 +1516,17 @@ root   pts/1    192.168.201.101  Sat Feb  7 12:35   still logged in
 root   pts/1    192.168.201.101  Fri Feb  6 12:13 - 18:46  (06:33)
 root   pts/1    192.168.201.254  Thu Feb  5 22:37 - 23:53  (01:16)
 # last 可以輸出『帳號/終端機/來源/日期時間』的資料，並且是排列整齊的
+kevin@ubuntu:~/os$ last
+kevin    :0           :0               Tue Nov 15 11:06   still logged in
+reboot   system boot  5.4.0-131-generi Tue Nov 15 11:06   still running
+kevin    :0           :0               Fri Nov  4 12:09 - 20:17  (08:08)
+reboot   system boot  5.4.0-131-generi Fri Nov  4 12:08 - 20:17  (08:08)
+kevin    :0           :0               Thu Nov  3 14:50 - down   (03:05)
+reboot   system boot  5.4.0-131-generi Thu Nov  3 14:49 - 17:55  (03:05)
+kevin    :0           :0               Wed Nov  2 14:47 - 17:07  (02:19)
+reboot   system boot  5.4.0-131-generi Wed Nov  2 14:47 - 17:07  (02:19)
+
+wtmp begins Tue Nov  1 19:32:39 2022
 
 [dmtsai@study ~]$ last | cut -d ' ' -f 1
 # 由輸出的結果我們可以發現第一個空白分隔的欄位代表帳號，所以使用如上指令：
