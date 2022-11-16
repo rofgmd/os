@@ -1533,3 +1533,428 @@ wtmp begins Tue Nov  1 19:32:39 2022
 # 但是因為 root   pts/1 之間空格有好幾個，並非僅有一個，所以，如果要找出 
 # pts/1 其實不能以 cut -d ' ' -f 1,2 喔！輸出的結果會不是我們想要的。
 ```
+cut 主要的用途在於將『同一行裡面的資料進行分解！』最常使用在分析一些數據或文字資料的時候！ 這是因為有時候我們會以某些字元當作分割的參數，然後來將資料加以切割，以取得我們所需要的資料。 鳥哥也很常使用這個功能呢！尤其是在分析 log 檔案的時候！不過，cut 在處理多空格相連的資料時，可能會比較吃力一點，所以某些時刻可能會使用下一章的 awk 來取代的！
+
+#### grep
+
+剛剛的 cut 是將一行訊息當中，取出某部分我們想要的，而 grep 則是分析一行訊息， 若當中有我們所需要的資訊，就將該行拿出來～簡單的語法是這樣的：
+
+```
+[dmtsai@study ~]$ grep [-acinv] [--color=auto] '搜尋字串' filename
+選項與參數：
+-a ：將 binary 檔案以 text 檔案的方式搜尋資料
+-c ：計算找到 '搜尋字串' 的次數
+-i ：忽略大小寫的不同，所以大小寫視為相同
+-n ：順便輸出行號
+-v ：反向選擇，亦即顯示出沒有 '搜尋字串' 內容的那一行！
+--color=auto ：可以將找到的關鍵字部分加上顏色的顯示喔！
+
+範例一：將 last 當中，有出現 root 的那一行就取出來；
+[dmtsai@study ~]$ last | grep 'root'
+
+範例二：與範例一相反，只要沒有 root 的就取出！
+[dmtsai@study ~]$ last | grep -v 'root'
+
+範例三：在 last 的輸出訊息中，只要有 root 就取出，並且僅取第一欄
+[dmtsai@study ~]$ last | grep 'root' |cut -d ' ' -f1
+# 在取出 root 之後，利用上個指令 cut 的處理，就能夠僅取得第一欄囉！
+
+範例四：取出 /etc/man_db.conf 內含 MANPATH 的那幾行
+[dmtsai@study ~]$ grep --color=auto 'MANPATH' /etc/man_db.conf
+....(前面省略)....
+MANPATH_MAP     /usr/games              /usr/share/man
+MANPATH_MAP     /opt/bin                /opt/man
+MANPATH_MAP     /opt/sbin               /opt/man
+# 神奇的是，如果加上 --color=auto 的選項，找到的關鍵字部分會用特殊顏色顯示喔！
+```
+grep 是個很棒的指令喔！他支援的語法實在是太多了～用在正規表示法裡頭， 能夠處理的資料實在是多的很～不過，我們這裡先不談正規表示法～下一章再來說明～ 您先瞭解一下， grep 可以解析一行文字，取得關鍵字，若該行有存在關鍵字，就會整行列出來！另外， CentOS 7 當中，預設的 grep 已經主動加上 --color=auto 在 alias 內了喔！
+
+### 10.6.2 排序命令： sort, wc, uniq
+
+很多時候，我們都會去計算一次資料裡頭的相同型態的資料總數，舉例來說， 使用 last 可以查得系統上面有登入主機者的身份。那麼我可以針對每個使用者查出他們的總登入次數嗎？ 此時就得要排序與計算之類的指令來輔助了！底下我們介紹幾個好用的排序與統計指令喔！
+
+#### sort
+
+sort 是很有趣的指令，他可以幫我們進行排序，而且可以依據不同的資料型態來排序喔！ 例如數字與文字的排序就不一樣。此外，排序的字元與語系的編碼有關，因此， 如果您需要排序時，建議使用 LANG=C 來讓語系統一，資料排序比較好一些。
+
+```
+[dmtsai@study ~]$ sort [-fbMnrtuk] [file or stdin]
+選項與參數：
+-f  ：忽略大小寫的差異，例如 A 與 a 視為編碼相同；
+-b  ：忽略最前面的空白字元部分；
+-M  ：以月份的名字來排序，例如 JAN, DEC 等等的排序方法；
+-n  ：使用『純數字』進行排序(預設是以文字型態來排序的)；
+-r  ：反向排序；
+-u  ：就是 uniq ，相同的資料中，僅出現一行代表；
+-t  ：分隔符號，預設是用 [tab] 鍵來分隔；
+-k  ：以那個區間 (field) 來進行排序的意思
+
+範例一：個人帳號都記錄在 /etc/passwd 下，請將帳號進行排序。
+[dmtsai@study ~]$ cat /etc/passwd | sort
+abrt:x:173:173::/etc/abrt:/sbin/nologin
+adm:x:3:4:adm:/var/adm:/sbin/nologin
+alex:x:1001:1002::/home/alex:/bin/bash
+# 鳥哥省略很多的輸出～由上面的資料看起來， sort 是預設『以第一個』資料來排序，
+# 而且預設是以『文字』型態來排序的喔！所以由 a 開始排到最後囉！
+
+範例二：/etc/passwd 內容是以 : 來分隔的，我想以第三欄含後面資料來排序，該如何？
+[dmtsai@study ~]$ cat /etc/passwd | sort -t ':' -k 3
+root:x:0:0:root:/root:/bin/bash
+dmtsai:x:1000:1000:dmtsai:/home/dmtsai:/bin/bash
+alex:x:1001:1002::/home/alex:/bin/bash
+arod:x:1002:1003::/home/arod:/bin/bash
+# 看到特殊字體的輸出部分了吧？怎麼會這樣排列啊？呵呵！沒錯啦～若單純以第三欄位來處理則是：
+
+[dmtsai@study ~]$ cat /etc/passwd | sort -t ':' -k 3,3
+# 如果是以文字型態來排序的話，原本就會是這樣，想要使用數字排序：
+# cat /etc/passwd | sort -t ':' -k 3,3 -n
+# 這樣才行啊！用那個 -n 來告知 sort 以數字來排序啊！
+
+範例三：利用 last ，將輸出的資料僅取帳號，並加以排序
+[dmtsai@study ~]$ last | cut -d ' ' -f1 | sort
+```
+sort 同樣是很常用的指令呢！因為我們常常需要比較一些資訊啦！ 舉個上面的第二個例子來說好了！今天假設你有很多的帳號，而且你想要知道最大的使用者 ID 目前到哪一號了！呵呵！使用 sort 一下子就可以知道答案咯！當然其使用還不止此啦！有空的話不妨玩一玩！
+
+#### uniq
+
+如果我排序完成了，想要將重複的資料僅列出一個顯示，可以怎麼做呢？
+```
+[dmtsai@study ~]$ uniq [-ic]
+選項與參數：
+-i  ：忽略大小寫字元的不同；
+-c  ：進行計數
+
+範例一：使用 last 將帳號列出，僅取出帳號欄，進行排序後僅取出一位；
+[dmtsai@study ~]$ last | cut -d ' ' -f1 | sort | uniq
+
+範例二：承上題，如果我還想要知道每個人的登入總次數呢？
+[dmtsai@study ~]$ last | cut -d ' ' -f1 | sort | uniq -c
+      1
+      6 (unknown
+     47 dmtsai
+      4 reboot
+      7 root
+      1 wtmp
+# 從上面的結果可以發現 reboot 有 4 次， root 登入則有 7 次！大部分是以 dmtsai 來操作！
+# wtmp 與第一行的空白都是 last 的預設字元，那兩個可以忽略的！
+kevin@ubuntu:~/os$ last | cut -d ' ' -f1 | sort | uniq
+
+kevin
+reboot
+wtmp
+kevin@ubuntu:~/os$ last | cut -d ' ' -f1 | sort | uniq -c
+      1 
+      6 kevin
+      6 reboot
+      1 wtmp
+```
+
+這個指令用來將『重複的行刪除掉只顯示一個』，舉個例子來說， 你要知道這個月份登入你主機的使用者有誰，而不在乎他的登入次數，那麼就使用上面的範例， (1)先將所有的資料列出；(2)再將人名獨立出來；(3)經過排序；(4)只顯示一個！ 由於這個指令是在將重複的東西減少，所以當然需要『配合排序過的檔案』來處理囉！
+
+#### wc
+
+如果我想要知道 /etc/man_db.conf 這個檔案裡面有多少字？多少行？多少字元的話， 可以怎麼做呢？其實可以利用 wc 這個指令來達成喔！他可以幫我們計算輸出的訊息的整體資料！
+```
+[dmtsai@study ~]$ wc [-lwm]
+選項與參數：
+-l  ：僅列出行；
+-w  ：僅列出多少字(英文單字)；
+-m  ：多少字元；
+
+範例一：那個 /etc/man_db.conf 裡面到底有多少相關字、行、字元數？
+[dmtsai@study ~]$ cat /etc/man_db.conf | wc 
+    131     723    5171
+# 輸出的三個數字中，分別代表： 『行、字數、字元數』
+
+範例二：我知道使用 last 可以輸出登入者，但是 last 最後兩行並非帳號內容，那麼請問，
+        我該如何以一行指令串取得登入系統的總人次？
+[dmtsai@study ~]$ last | grep [a-zA-Z] | grep -v 'wtmp' | grep -v 'reboot' | \
+> grep -v 'unknown' |wc -l 
+# 由於 last 會輸出空白行, wtmp, unknown, reboot 等無關帳號登入的資訊，因此，我利用
+# grep 取出非空白行，以及去除上述關鍵字那幾行，再計算行數，就能夠瞭解囉！
+```
+wc 也可以當作指令？這可不是上洗手間的 WC 呢！這是相當有用的計算檔案內容的一個工具組喔！舉個例子來說， 當你要知道目前你的帳號檔案中有多少個帳號時，就使用這個方法：『 cat /etc/passwd | wc -l 』啦！因為 /etc/passwd 裡頭一行代表一個使用者呀！ 所以知道行數就曉得有多少的帳號在裡頭了！而如果要計算一個檔案裡頭有多少個字元時，就使用 wc -m 這個選項吧！
+
+### 10.6.3 雙向重導向： tee
+
+想個簡單的東西，我們由前一節知道 > 會將資料流整個傳送給檔案或裝置，因此我們除非去讀取該檔案或裝置， 否則就無法繼續利用這個資料流。萬一我想要將這個資料流的處理過程中將某段訊息存下來，應該怎麼做？ 利用 tee 就可以囉～我們可以這樣簡單的看一下：
+
+<div align=center><img src="/os_note/bash/picture/0320bash_5.png"></div>
+<div align=center>圖10.6.2、tee 的工作流程示意圖</div>
+
+tee 會同時將資料流分送到檔案去與螢幕 (screen)；而輸出到螢幕的，其實就是 stdout ，那就可以讓下個指令繼續處理喔！
+
+```
+[dmtsai@study ~]$ tee [-a] file
+選項與參數：
+-a  ：以累加 (append) 的方式，將資料加入 file 當中！
+
+[dmtsai@study ~]$ last | tee last.list | cut -d " " -f1
+# 這個範例可以讓我們將 last 的輸出存一份到 last.list 檔案中；
+
+[dmtsai@study ~]$ ls -l /home | tee ~/homefile | more
+# 這個範例則是將 ls 的資料存一份到 ~/homefile ，同時螢幕也有輸出訊息！
+
+[dmtsai@study ~]$ ls -l / | tee -a ~/homefile | more
+# 要注意！ tee 後接的檔案會被覆蓋，若加上 -a 這個選項則能將訊息累加。
+```
+tee 可以讓 standard output 轉存一份到檔案內並將同樣的資料繼續送到螢幕去處理！ 這樣除了可以讓我們同時分析一份資料並記錄下來之外，還可以作為處理一份資料的中間暫存檔記錄之用！ tee 這傢伙在很多選擇/填充的認證考試中很容易考呢！
+
+### 10.6.4 字元轉換命令： tr, col, join, paste, expand
+
+我們在 vim 程式編輯器當中，提到過 DOS 斷行字元與 Unix 斷行字元的不同，並且可以使用 dos2unix 與 unix2dos 來完成轉換。好了，那麼思考一下，是否還有其他常用的字元替代？ 舉例來說，要將大寫改成小寫，或者是將資料中的 [tab] 按鍵轉成空白鍵？還有，如何將兩篇訊息整合成一篇？ 底下我們就來介紹一下這些字元轉換命令在管線當中的使用方法：
+
+#### tr
+
+tr 可以用來刪除一段訊息當中的文字，或者是進行文字訊息的替換！
+```
+[dmtsai@study ~]$ tr [-ds] SET1 ...
+選項與參數：
+-d  ：刪除訊息當中的 SET1 這個字串；
+-s  ：取代掉重複的字元！
+
+範例一：將 last 輸出的訊息中，所有的小寫變成大寫字元：
+[dmtsai@study ~]$ last | tr '[a-z]' '[A-Z]'
+# 事實上，沒有加上單引號也是可以執行的，如：『 last | tr [a-z] [A-Z] 』
+
+範例二：將 /etc/passwd 輸出的訊息中，將冒號 (:) 刪除
+[dmtsai@study ~]$ cat /etc/passwd | tr -d ':'
+
+範例三：將 /etc/passwd 轉存成 dos 斷行到 /root/passwd 中，再將 ^M 符號刪除
+[dmtsai@study ~]$ cp /etc/passwd ~/passwd && unix2dos ~/passwd
+[dmtsai@study ~]$ file /etc/passwd ~/passwd
+/etc/passwd:         ASCII text
+/home/dmtsai/passwd: ASCII text, with CRLF line terminators  <==就是 DOS 斷行
+[dmtsai@study ~]$ cat ~/passwd | tr -d '\r' > ~/passwd.linux
+# 那個 \r 指的是 DOS 的斷行字元，關於更多的字符，請參考 man tr
+[dmtsai@study ~]$ ll /etc/passwd ~/passwd*
+-rw-r--r--. 1 root   root   2092 Jun 17 00:20 /etc/passwd
+-rw-r--r--. 1 dmtsai dmtsai 2133 Jul  9 22:13 /home/dmtsai/passwd
+-rw-rw-r--. 1 dmtsai dmtsai 2092 Jul  9 22:13 /home/dmtsai/passwd.linux
+# 處理過後，發現檔案大小與原本的 /etc/passwd 就一致了！
+```
+其實這個指令也可以寫在『正規表示法』裡頭！因為他也是由正規表示法的方式來取代資料的！ 以上面的例子來說，使用 [] 可以設定一串字呢！也常常用來取代檔案中的怪異符號！ 例如上面第三個例子當中，可以去除 DOS 檔案留下來的 ^M 這個斷行的符號！這東西相當的有用！相信處理 Linux & Windows 系統中的人們最麻煩的一件事就是這個事情啦！亦即是 DOS 底下會自動的在每行行尾加入 ^M 這個斷行符號！這個時候除了以前講過的 dos2unix 之外，我們也可以使用這個 tr 來將 ^M 去除！ ^M 可以使用 \r 來代替之！
+
+#### col
+
+```
+[dmtsai@study ~]$ col [-xb]
+選項與參數：
+-x  ：將 tab 鍵轉換成對等的空白鍵
+
+範例一：利用 cat -A 顯示出所有特殊按鍵，最後以 col 將 [tab] 轉成空白
+[dmtsai@study ~]$ cat -A /etc/man_db.conf  <==此時會看到很多 ^I 的符號，那就是 tab
+[dmtsai@study ~]$ cat /etc/man_db.conf | col -x | cat -A | more
+# 嘿嘿！如此一來， [tab] 按鍵會被取代成為空白鍵，輸出就美觀多了！
+```
+雖然 col 有他特殊的用途，不過，很多時候，他可以用來簡單的處理將 [tab] 按鍵取代成為空白鍵！ 例如上面的例子當中，如果使用 cat -A 則 [tab] 會以 ^I 來表示。 但經過 col -x 的處理，則會將 [tab] 取代成為對等的空白鍵！
+
+#### join
+
+join 看字面上的意義 (加入/參加) 就可以知道，他是在處理兩個檔案之間的資料， 而且，主要是在處理『兩個檔案當中，有 "相同資料" 的那一行，才將他加在一起』的意思。我們利用底下的簡單例子來說明：
+```
+[dmtsai@study ~]$ join [-ti12] file1 file2
+選項與參數：
+-t  ：join 預設以空白字元分隔資料，並且比對『第一個欄位』的資料，
+      如果兩個檔案相同，則將兩筆資料聯成一行，且第一個欄位放在第一個！
+-i  ：忽略大小寫的差異；
+-1  ：這個是數字的 1 ，代表『第一個檔案要用那個欄位來分析』的意思；
+-2  ：代表『第二個檔案要用那個欄位來分析』的意思。
+
+範例一：用 root 的身份，將 /etc/passwd 與 /etc/shadow 相關資料整合成一欄
+[root@study ~]# head -n 3 /etc/passwd /etc/shadow
+==> /etc/passwd <==
+root:x:0:0:root:/root:/bin/bash
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+
+==> /etc/shadow <==
+root:$6$wtbCCce/PxMeE5wm$KE2IfSJr...:16559:0:99999:7:::
+bin:*:16372:0:99999:7:::
+daemon:*:16372:0:99999:7:::
+# 由輸出的資料可以發現這兩個檔案的最左邊欄位都是相同帳號！且以 : 分隔
+
+[root@study ~]# join -t ':' /etc/passwd /etc/shadow | head -n 3
+root:x:0:0:root:/root:/bin/bash:$6$wtbCCce/PxMeE5wm$KE2IfSJr...:16559:0:99999:7:::
+bin:x:1:1:bin:/bin:/sbin/nologin:*:16372:0:99999:7:::
+daemon:x:2:2:daemon:/sbin:/sbin/nologin:*:16372:0:99999:7:::
+# 透過上面這個動作，我們可以將兩個檔案第一欄位相同者整合成一列！
+# 第二個檔案的相同欄位並不會顯示(因為已經在最左邊的欄位出現了啊！)
+
+範例二：我們知道 /etc/passwd 第四個欄位是 GID ，那個 GID 記錄在 
+        /etc/group 當中的第三個欄位，請問如何將兩個檔案整合？
+[root@study ~]# head -n 3 /etc/passwd /etc/group
+==> /etc/passwd <==
+root:x:0:0:root:/root:/bin/bash
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+
+==> /etc/group <==
+root:x:0:
+bin:x:1:
+daemon:x:2:
+# 從上面可以看到，確實有相同的部分喔！趕緊來整合一下！
+
+[root@study ~]# join -t ':' -1 4 /etc/passwd -2 3 /etc/group | head -n 3
+0:root:x:0:root:/root:/bin/bash:root:x:
+1:bin:x:1:bin:/bin:/sbin/nologin:bin:x:
+2:daemon:x:2:daemon:/sbin:/sbin/nologin:daemon:x:
+# 同樣的，相同的欄位部分被移動到最前面了！所以第二個檔案的內容就沒再顯示。
+# 請讀者們配合上述顯示兩個檔案的實際內容來比對！
+```
+這個 join 在處理兩個相關的資料檔案時，就真的是很有幫助的啦！ 例如上面的案例當中，我的 /etc/passwd, /etc/shadow, /etc/group 都是有相關性的， 其中 /etc/passwd, /etc/shadow 以帳號為相關性，至於 /etc/passwd, /etc/group 則以所謂的 GID (帳號的數字定義) 來作為他的相關性。根據這個相關性， 我們可以將有關係的資料放置在一起！這在處理資料可是相當有幫助的！ 但是上面的例子有點難，希望您可以靜下心好好的看一看原因喔！
+
+此外，需要特別注意的是，在使用 join 之前，你所需要處理的檔案應該要事先經過排序 (sort) 處理！ 否則有些比對的項目會被略過呢！特別注意了！
+
+#### paste
+
+這個 paste 就要比 join 簡單多了！相對於 join 必須要比對兩個檔案的資料相關性， paste 就直接『將兩行貼在一起，且中間以 [tab] 鍵隔開』而已！簡單的使用方法：
+```
+[dmtsai@study ~]$ paste [-d] file1 file2
+選項與參數：
+-d  ：後面可以接分隔字元。預設是以 [tab] 來分隔的！
+-   ：如果 file 部分寫成 - ，表示來自 standard input 的資料的意思。
+
+範例一：用 root 身份，將 /etc/passwd 與 /etc/shadow 同一行貼在一起
+[root@study ~]# paste /etc/passwd /etc/shadow
+root:x:0:0:root:/root:/bin/bash root:$6$wtbCCce/PxMeE5wm$KE2IfSJr...:16559:0:99999:7:::
+bin:x:1:1:bin:/bin:/sbin/nologin        bin:*:16372:0:99999:7:::
+daemon:x:2:2:daemon:/sbin:/sbin/nologin daemon:*:16372:0:99999:7:::
+# 注意喔！同一行中間是以 [tab] 按鍵隔開的！
+
+範例二：先將 /etc/group 讀出(用 cat)，然後與範例一貼上一起！且僅取出前三行
+[root@study ~]# cat /etc/group|paste /etc/passwd /etc/shadow -|head -n 3
+# 這個例子的重點在那個 - 的使用！那玩意兒常常代表 stdin 喔！
+```
+
+#### expand
+
+這玩意兒就是在將 [tab] 按鍵轉成空白鍵啦～可以這樣玩：
+```
+[dmtsai@study ~]$ expand [-t] file
+選項與參數：
+-t  ：後面可以接數字。一般來說，一個 tab 按鍵可以用 8 個空白鍵取代。
+      我們也可以自行定義一個 [tab] 按鍵代表多少個字元呢！
+
+範例一：將 /etc/man_db.conf 內行首為 MANPATH 的字樣就取出；僅取前三行；
+[dmtsai@study ~]$ grep '^MANPATH' /etc/man_db.conf | head -n 3
+MANPATH_MAP     /bin                    /usr/share/man
+MANPATH_MAP     /usr/bin                /usr/share/man
+MANPATH_MAP     /sbin                   /usr/share/man
+# 行首的代表標誌為 ^ ，這個我們留待下節介紹！先有概念即可！
+
+範例二：承上，如果我想要將所有的符號都列出來？(用 cat)
+[dmtsai@study ~]$ grep '^MANPATH' /etc/man_db.conf | head -n 3 |cat -A
+MANPATH_MAP^I/bin^I^I^I/usr/share/man$
+MANPATH_MAP^I/usr/bin^I^I/usr/share/man$
+MANPATH_MAP^I/sbin^I^I^I/usr/share/man$
+# 發現差別了嗎？沒錯～ [tab] 按鍵可以被 cat -A 顯示成為 ^I 
+
+範例三：承上，我將 [tab] 按鍵設定成 6 個字元的話？
+[dmtsai@study ~]$ grep '^MANPATH' /etc/man_db.conf | head -n 3 | expand -t 6 - | cat -A
+MANPATH_MAP /bin              /usr/share/man$
+MANPATH_MAP /usr/bin          /usr/share/man$
+MANPATH_MAP /sbin             /usr/share/man$
+123456123456123456123456123456123456123456123456...
+# 仔細看一下上面的數字說明，因為我是以 6 個字元來代表一個 [tab] 的長度，所以，
+# MAN... 到 /usr 之間會隔 12 (兩個 [tab]) 個字元喔！如果 tab 改成 9 的話，
+# 情況就又不同了！這裡也不好理解～您可以多設定幾個數字來查閱就曉得！
+```
+expand 也是挺好玩的～他會自動將 [tab] 轉成空白鍵～所以，以上面的例子來說， 使用 cat -A 就會查不到 ^I 的字符囉～此外，因為 [tab] 最大的功能就是格式排列整齊！ 我們轉成空白鍵後，這個空白鍵也會依據我們自己的定義來增加大小～ 所以，並不是一個 ^I 就會換成 8 個空白喔！這個地方要特別注意的哩！ 此外，您也可以參考一下 unexpand 這個將空白轉成 [tab] 的指令功能啊！ ^_^
+
+### 10.6.5 分割命令： split
+
+如果你有檔案太大，導致一些攜帶式裝置無法複製的問題，嘿嘿！找 split 就對了！ 他可以幫你將一個大檔案，依據檔案大小或行數來分割，就可以將大檔案分割成為小檔案了！ 快速又有效啊！真不錯～
+
+```
+[dmtsai@study ~]$ split [-bl] file PREFIX
+選項與參數：
+-b  ：後面可接欲分割成的檔案大小，可加單位，例如 b, k, m 等；
+-l  ：以行數來進行分割。
+PREFIX ：代表前置字元的意思，可作為分割檔案的前導文字。
+
+範例一：我的 /etc/services 有六百多K，若想要分成 300K 一個檔案時？
+[dmtsai@study ~]$ cd /tmp; split -b 300k /etc/services services
+[dmtsai@study tmp]$ ll -k services*
+-rw-rw-r--. 1 dmtsai dmtsai 307200 Jul  9 22:52 servicesaa
+-rw-rw-r--. 1 dmtsai dmtsai 307200 Jul  9 22:52 servicesab
+-rw-rw-r--. 1 dmtsai dmtsai  55893 Jul  9 22:52 servicesac
+# 那個檔名可以隨意取的啦！我們只要寫上前導文字，小檔案就會以
+# xxxaa, xxxab, xxxac 等方式來建立小檔案的！
+
+範例二：如何將上面的三個小檔案合成一個檔案，檔名為 servicesback
+[dmtsai@study tmp]$ cat services* >> servicesback
+# 很簡單吧？就用資料流重導向就好啦！簡單！
+
+範例三：使用 ls -al / 輸出的資訊中，每十行記錄成一個檔案
+[dmtsai@study tmp]$ ls -al / | split -l 10 - lsroot
+[dmtsai@study tmp]$ wc -l lsroot*
+  10 lsrootaa
+  10 lsrootab
+   4 lsrootac
+  24 total
+# 重點在那個 - 啦！一般來說，如果需要 stdout/stdin 時，但偏偏又沒有檔案，
+# 有的只是 - 時，那麼那個 - 就會被當成 stdin 或 stdout ～
+```
+在 Windows 作業系統下，你要將檔案分割需要如何作？傷腦筋吧！在 Linux 底下就簡單的多了！你要將檔案分割的話，那麼就使用 -b size 來將一個分割的檔案限制其大小，如果是行數的話，那麼就使用 -l line 來分割！好用的很！如此一來，你就可以輕易的將你的檔案分割成某些軟體能夠支援的最大容量 (例如 gmail 單一信件 25MB 之類的！)，方便你 copy 囉！
+
+### 10.6.6 參數代換： xargs
+
+xargs 是在做什麼的呢？就以字面上的意義來看， x 是加減乘除的乘號，args 則是 arguments (參數) 的意思，所以說，這個玩意兒就是在產生某個指令的參數的意思！ xargs 可以讀入 stdin 的資料，並且以空白字元或斷行字元作為分辨，將 stdin 的資料分隔成為 arguments 。 因為是以空白字元作為分隔，所以，如果有一些檔名或者是其他意義的名詞內含有空白字元的時候， xargs 可能就會誤判了～他的用法其實也還滿簡單的！就來看一看先！
+
+```
+[dmtsai@study ~]$ xargs [-0epn] command
+選項與參數：
+-0  ：如果輸入的 stdin 含有特殊字元，例如 `, \, 空白鍵等等字元時，這個 -0 參數
+      可以將他還原成一般字元。這個參數可以用於特殊狀態喔！
+-e  ：這個是 EOF (end of file) 的意思。後面可以接一個字串，當 xargs 分析到這個字串時，
+      就會停止繼續工作！
+-p  ：在執行每個指令的 argument 時，都會詢問使用者的意思；
+-n  ：後面接次數，每次 command 指令執行時，要使用幾個參數的意思。
+當 xargs 後面沒有接任何的指令時，預設是以 echo 來進行輸出喔！
+```
+其實，在 man xargs 裡面就有三四個小範例，您可以自行參考一下內容。 此外， xargs 真的是很好用的一個玩意兒！您真的需要好好的參詳參詳！會使用 xargs 的原因是， 很多指令其實並不支援管線命令，因此我們可以透過 xargs 來提供該指令引用 standard input 之用！舉例來說，我們使用如下的範例來說明：
+
+```
+範例四：找出 /usr/sbin 底下具有特殊權限的檔名，並使用 ls -l 列出詳細屬性
+[dmtsai@study ~]$ find /usr/sbin -perm /7000 | xargs ls -l
+-rwx--s--x. 1 root lock      11208 Jun 10  2014 /usr/sbin/lockdev
+-rwsr-xr-x. 1 root root     113400 Mar  6 12:17 /usr/sbin/mount.nfs
+-rwxr-sr-x. 1 root root      11208 Mar  6 11:05 /usr/sbin/netreport
+.....(底下省略).....
+# 聰明的讀者應該會想到使用『 ls -l $(find /usr/sbin -perm /7000) 』來處理這個範例！
+# 都 OK！能解決問題的方法，就是好方法！
+```
+
+### 10.6.7 關於減號 - 的用途
+
+管線命令在 bash 的連續的處理程序中是相當重要的！另外，在 log file 的分析當中也是相當重要的一環， 所以請特別留意！另外，在管線命令當中，常常會使用到前一個指令的 stdout 作為這次的 stdin ， 某些指令需要用到檔案名稱 (例如 tar) 來進行處理時，該 stdin 與 stdout 可以利用減號 "-" 來替代， 舉例來說：
+```
+[root@study ~]# mkdir /tmp/homeback
+[root@study ~]# tar -cvf - /home | tar -xvf - -C /tmp/homeback
+```
+上面這個例子是說：『我將 /home 裡面的檔案給他打包，但打包的資料不是紀錄到檔案，而是傳送到 stdout； 經過管線後，將 tar -cvf - /home 傳送給後面的 tar -xvf - 』。後面的這個 - 則是取用前一個指令的 stdout， 因此，我們就不需要使用 filename 了！這是很常見的例子喔！注意注意！
+
+## 10.7 重點回顧
+
+由於核心在記憶體中是受保護的區塊，因此我們必須要透過『 Shell 』將我們輸入的指令與 Kernel 溝通，好讓 Kernel 可以控制硬體來正確無誤的工作
+學習 shell 的原因主要有：文字介面的 shell 在各大 distribution 都一樣；遠端管理時文字介面速度較快； shell 是管理 Linux 系統非常重要的一環，因為 Linux 內很多控制都是以 shell 撰寫的。
+系統合法的 shell 均寫在 /etc/shells 檔案中；
+使用者預設登入取得的 shell 記錄於 /etc/passwd 的最後一個欄位；
+bash 的功能主要有：命令編修能力；命令與檔案補全功能；命令別名設定功能；工作控制、前景背景控制；程式化腳本；萬用字元
+type 可以用來找到執行指令為何種類型，亦可用於與 which 相同的功能；
+變數就是以一組文字或符號等，來取代一些設定或者是一串保留的資料
+變數主要有環境變數與自訂變數，或稱為全域變數與區域變數
+使用 env 與 export 可觀察環境變數，其中 export 可以將自訂變數轉成環境變數；
+set 可以觀察目前 bash 環境下的所有變數；
+$? 亦為變數，是前一個指令執行完畢後的回傳值。在 Linux 回傳值為 0 代表執行成功；
+locale 可用於觀察語系資料；
+可用 read 讓使用者由鍵盤輸入變數的值
+ulimit 可用以限制使用者使用系統的資源情況
+bash 的設定檔主要分為 login shell 與 non-login shell。login shell 主要讀取 /etc/profile 與 ~/.bash_profile， non-login shell 則僅讀取 ~/.bashrc
+在使用 vim 時，若不小心按了 [ctrl]+s 則畫面會被凍結。你可以使用 [ctrl]+q 來解除凍結
+萬用字元主要有： *, ?, [] 等等
+資料流重導向透過 >, 2>, < 之類的符號將輸出的資訊轉到其他檔案或裝置去；
+連續命令的下達可透過 ; && || 等符號來處理
+管線命令的重點是：『管線命令僅會處理 standard output，對於 standard error output 會予以忽略』 『管線命令必須要能夠接受來自前一個指令的資料成為 standard input 繼續處理才行。』
+本章介紹的管線命令主要有：cut, grep, sort, wc, uniq, tee, tr, col, join, paste, expand, split, xargs 等。
