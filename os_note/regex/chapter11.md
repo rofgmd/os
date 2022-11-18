@@ -106,10 +106,10 @@ grep 是一個很常見也很常用的指令，他最重要的功能就是進行
 grep 已經使用 alias 設定成為『 grep --color=auto 』
 至於本章的練習用檔案請由底下的連結來下載。需要特別注意的是，底下這個檔案是鳥哥在 MS Windows 系統下編輯的， 並且已經特殊處理過，因此，他雖然是純文字檔，但是內含一些 Windows 系統下的軟體常常自行加入的一些特殊字元，例如斷行字元 (^M) 就是一例！ 所以，你可以直接將底下的文字以 vi 儲存成 regular_express.txt 這個檔案， 不過，還是比較建議直接點底下的連結：
 
-http://linux.vbird.org/linux_basic/0330regularex/regular_express.txt
+[http://linux.vbird.org/linux_basic/0330regularex/regular_express.txt]
 如果你的 Linux 可以直接連上 Internet 的話，那麼使用如下的指令來捉取即可：
 
-wget http://linux.vbird.org/linux_basic/0330regularex/regular_express.txt
+wget [http://linux.vbird.org/linux_basic/0330regularex/regular_express.txt]
 至於這個檔案的內容如下：
 
 ```bash
@@ -199,3 +199,12 @@ kevin@Kevin-Laptop:~/os$ grep -in 'the' ./os_note/regex/regular_express.txt
 
 除了多兩行 (9, 14行) 之外，第 16 行也多了一個 The 的關鍵字被擷取到喔！
 
+#### 例題二、利用中括號 [] 來搜尋集合字元
+
+如果我想要搜尋 test 或 taste 這兩個單字時，可以發現到，其實她們有共通的 't?st' 存在～這個時候，我可以這樣來搜尋：
+
+```bash
+[dmtsai@study ~]$ grep -n 't[ae]st' regular_express.txt
+8:I can't finish the test.
+9:Oh! The soup taste good.
+```

@@ -1,5 +1,9 @@
 {
     "files.associations": {
         "stat.h": "c"
+    },
+    "markdownlint.config": {
+    "default": true,
+    "MD033": false // 加这一句
     }
 }
