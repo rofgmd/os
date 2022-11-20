@@ -208,3 +208,115 @@ kevin@Kevin-Laptop:~/os$ grep -in 'the' ./os_note/regex/regular_express.txt
 8:I can't finish the test.
 9:Oh! The soup taste good.
 ```
+瞭解了吧？其實 [] 裡面不論有幾個字元，他都僅代表某『一個』字元， 所以，上面的例子說明了，我需要的字串是『tast』或『test』兩個字串而已！ 而如果想要搜尋到有 oo 的字元時，則使用
+```bash
+[dmtsai@study ~]$ grep -n 'oo' regular_express.txt
+1:"Open Source" is a good mechanism to develop programs.
+2:apple is my favorite food.
+3:Football game is not use feet only.
+9:Oh! The soup taste good.
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+```
+但是，如果我不想要 oo 前面有 g 的話呢？此時，可以利用在集合字元的反向選擇 [^] 來達成：
+```bash
+[dmtsai@study ~]$ grep -n '[^g]oo' regular_express.txt
+2:apple is my favorite food.
+3:Football game is not use feet only.
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+```
+意思就是說，我需要的是 oo ，但是 oo 前面不能是 g 就是了！仔細比較上面兩個表格，妳會發現，第 1,9 行不見了，因為 oo 前面出現了 g 所致！第 2,3 行沒有疑問，因為 foo 與 Foo 均可被接受！但是第 18 行明明有 google 的 goo 啊～別忘記了，因為該行後面出現了 tool 的 too 啊！所以該行也被列出來～ 也就是說， 18 行裡面雖然出現了我們所不要的項目 (goo) 但是由於有需要的項目 (too) ， 因此，是符合字串搜尋的喔！
+
+至於第 19 行，同樣的，因為 goooooogle 裡面的 oo 前面可能是 o ，例如： go(ooo)oogle ，所以，這一行也是符合需求的！
+
+再來，假設我 oo 前面不想要有小寫字元，所以，我可以這樣寫 [^abcd....z]oo ， 但是這樣似乎不怎麼方便，由於小寫字元的 ASCII 上編碼的順序是連續的， 因此，我們可以將之簡化為底下這樣：
+```bash
+[dmtsai@study ~]$ grep -n '[^a-z]oo' regular_express.txt
+3:Football game is not use feet only.
+```
+也就是說，當我們在一組集合字元中，如果該字元組是連續的，例如大寫英文/小寫英文/數字等等， 就可以使用[a-z],[A-Z],[0-9]等方式來書寫，那麼如果我們的要求字串是數字與英文呢？ 呵呵！就將他全部寫在一起，變成：[a-zA-Z0-9]。例如，我們要取得有數字的那一行，就這樣：
+```bash
+[dmtsai@study ~]$ grep -n '[0-9]' regular_express.txt
+5:However, this dress is about $ 3183 dollars.
+15:You are the best is mean you are the no. 1.
+```
+但由於考慮到語系對於編碼順序的影響，因此除了連續編碼使用減號『 - 』之外， 你也可以使用如下的方法來取得前面兩個測試的結果：
+```bash
+[dmtsai@study ~]$ grep -n '[^[:lower:]]oo' regular_express.txt
+# 那個 [:lower:] 代表的就是 a-z 的意思！請參考前兩小節的說明表格
+
+[dmtsai@study ~]$ grep -n '[[:digit:]]' regular_express.txt
+```
+啥？上頭在寫啥東西呢？不要害怕！分開來瞧一瞧。我們知道 [:lower:] 就是 a-z 的意思，那麼 [a-z] 當然就是 [[:lower:]] 囉！鳥哥第一次接觸正規表示法的時候，看到兩層中括號差點昏倒～完全看不懂！現在，請注意那個疊代的意義， 自然就能夠比較清楚了解囉！
+
+這樣對於 [] 以及 [^] 以及 [] 當中的 - ，還有關於前面表格提到的特殊關鍵字有瞭解了嗎？^_^！
+
+#### 例題三、行首與行尾字元 ^ $
+
+我們在例題一當中，可以查詢到一行字串裡面有 the 的，那如果我想要讓 the 只在行首列出呢？ 這個時候就得要使用定位字元了！我們可以這樣做：
+
+```bash
+[dmtsai@study ~]$ grep -n '^the' regular_express.txt
+12:the symbol '*' is represented as start.
+```
+此時，就只剩下第 12 行，因為只有第 12 行的行首是 the 開頭啊～此外， 如果我想要開頭是小寫字元的那一行就列出呢？可以這樣：
+
+```bash
+[dmtsai@study ~]$ grep -n '^[a-z]' regular_express.txt
+2:apple is my favorite food.
+4:this dress doesn't fit me.
+10:motorcycle is cheap than car.
+12:the symbol '*' is represented as start.
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+20:go! go! Let's go.
+```
+你可以發現我們可以捉到第一個字元都不是大寫的！上面的指令也可以用如下的方式來取代的：
+```bash
+kevin@Kevin-Laptop:~/os/os_note/regex$ grep -n '^[[:lower:]]' regular_express.txt
+2:apple is my favorite food.
+4:this dress doesn't fit me.
+10:motorcycle is cheap than car.
+12:the symbol '*' is represented as start.
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+20:go! go! Let's go.
+```
+好！那如果我不想要開頭是英文字母，則可以是這樣：
+
+```bash
+[dmtsai@study ~]$ grep -n '^[^a-zA-Z]' regular_express.txt
+1:"Open Source" is a good mechanism to develop programs.
+21:# I am VBird
+# 指令也可以是： grep -n '^[^[:alpha:]]' regular_express.txt
+```
+注意到了吧？那個 ^ 符號，在字元集合符號(括號[])之內與之外是不同的！ 在 [] 內代表『反向選擇』，在 [] 之外則代表定位在行首的意義！要分清楚喔！ 反過來思考，那如果我想要找出來，行尾結束為小數點 (.) 的那一行，該如何處理：
+```bash
+[dmtsai@study ~]$ grep -n '\.$' regular_express.txt
+1:"Open Source" is a good mechanism to develop programs.
+2:apple is my favorite food.
+3:Football game is not use feet only.
+4:this dress doesn't fit me.
+10:motorcycle is cheap than car.
+11:This window is clear.
+12:the symbol '*' is represented as start.
+15:You are the best is mean you are the no. 1.
+16:The world <Happy> is the same with "glad".
+17:I like dog.
+18:google is the best tools for search keyword.
+20:go! go! Let's go.
+```
+
+特別注意到，因為小數點具有其他意義(底下會介紹)，所以必須要使用跳脫字元(\)來加以解除其特殊意義！ 不過，你或許會覺得奇怪，但是第 5~9 行最後面也是 . 啊～怎麼無法列印出來？ 這裡就牽涉到 Windows 平台的軟體對於斷行字元的判斷問題了！我們使用 cat -A 將第五行拿出來看， 你會發現：
+```bash
+[dmtsai@study ~]$ cat -An regular_express.txt | head -n 10 | tail -n 6
+     5  However, this dress is about $ 3183 dollars.^M$
+     6  GNU is free air not free beer.^M$
+     7  Her hair is very beauty.^M$
+     8  I can't finish the test.^M$
+     9  Oh! The soup taste good.^M$
+    10  motorcycle is cheap than car.$
+```
+
+我們在第九章內談到過斷行字元在 Linux 與 Windows 上的差異， 在上面的表格中我們可以發現 5~9 行為 Windows 的斷行字元 (^M$) ，而正常的 Linux 應該僅有第 10 行顯示的那樣 ($) 。所以囉，那個 . 自然就不是緊接在 $ 之前喔！也就捉不到 5~9 行了！這樣可以瞭解 ^ 與 $ 的意義嗎？ 好了，先不要看底下的解答，自己想一想，那麼如果我想要找出來，哪一行是『空白行』， 也就是說，該行並沒有輸入任何資料，該如何搜尋？
