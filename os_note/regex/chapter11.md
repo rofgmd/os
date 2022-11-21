@@ -320,3 +320,344 @@ kevin@Kevin-Laptop:~/os/os_note/regex$ grep -n '^[[:lower:]]' regular_express.tx
 ```
 
 我們在第九章內談到過斷行字元在 Linux 與 Windows 上的差異， 在上面的表格中我們可以發現 5~9 行為 Windows 的斷行字元 (^M$) ，而正常的 Linux 應該僅有第 10 行顯示的那樣 ($) 。所以囉，那個 . 自然就不是緊接在 $ 之前喔！也就捉不到 5~9 行了！這樣可以瞭解 ^ 與 $ 的意義嗎？ 好了，先不要看底下的解答，自己想一想，那麼如果我想要找出來，哪一行是『空白行』， 也就是說，該行並沒有輸入任何資料，該如何搜尋？
+```bash
+[dmtsai@study ~]$ grep -n '^$' regular_express.txt
+22:
+```
+因為只有行首跟行尾 (^$)，所以，這樣就可以找出空白行啦！再來，假設你已經知道在一個程式腳本 (shell script) 或者是設定檔當中，空白行與開頭為 # 的那一行是註解，因此如果你要將資料列出給別人參考時， 可以將這些資料省略掉以節省保貴的紙張，那麼你可以怎麼作呢？ 我們以 /etc/rsyslog.conf 這個檔案來作範例，你可以自行參考一下輸出的結果：
+```bash
+[dmtsai@study ~]$ cat -n /etc/rsyslog.conf
+# 在 CentOS 7 中，結果可以發現有 91 行的輸出，很多空白行與 # 開頭的註解行
+
+[dmtsai@study ~]$ grep -v '^$' /etc/rsyslog.conf | grep -v '^#'
+# 結果僅有 14 行，其中第一個『 -v '^$' 』代表『不要空白行』，
+# 第二個『 -v '^#' 』代表『不要開頭是 # 的那行』喔！
+```
+是否節省很多版面啊？另外，你可能也會問，那為何不要出現 # 的符號的那行就直接捨棄呢？沒辦法！因為某些註解是與設定寫在同一行的後面， 如果你只是抓 # 就予以去除，那就會將某些設定也同時移除了！那錯誤就大了～
+
+#### 例題四、任意一個字元 . 與重複字元 *
+
+在第十章 bash 當中，我們知道萬用字元 * 可以用來代表任意(0或多個)字元， 但是正規表示法並不是萬用字元，兩者之間是不相同的！ 至於正規表示法當中的『 . 』則代表『絕對有一個任意字元』的意思！這兩個符號在正規表示法的意義如下：
+
+. (小數點)：代表『一定有一個任意字元』的意思；
+\* (星星號)：代表『重複前一個字元， 0 到無窮多次』的意思，為組合形態
+這樣講不好懂，我們直接做個練習吧！假設我需要找出 g??d 的字串，亦即共有四個字元， 起頭是 g 而結束是 d ，我可以這樣做：
+
+```bash
+[dmtsai@study ~]$ grep -n 'g..d' regular_express.txt
+1:"Open Source" is a good mechanism to develop programs.
+9:Oh! The soup taste good.
+16:The world <Happy> is the same with "glad".
+
+kevin@Kevin-Laptop:~/os$ grep -n 'g..d' ./os_note/regex/regular_express.txt 
+1:"Open Source" is a good mechanism to develop programs.
+9:Oh! The soup taste good.^M
+16:The world <Happy> is the same with "glad".
+```
+
+**因為強調 g 與 d 之間一定要存在兩個字元**，因此，第 13 行的 god 與第 14 行的 gd 就不會被列出來啦！再來，如果我想要列出有 oo, ooo, oooo 等等的資料， 也就是說，至少要有兩個(含) o 以上，該如何是好？是 o* 還是 oo* 還是 ooo* 呢？ 雖然你可以試看看結果， 不過結果太佔版面了 @_@ ，所以，我這裡就直接說明。
+
+因為 * 代表的是『重複 0 個或多個前面的 RE 字符』的意義， 因此，『o*』代表的是：『擁有空字元或一個 o 以上的字元』， 特別注意，因為允許空字元(就是有沒有字元都可以的意思)，因此，『 grep -n 'o*' regular_express.txt 』將會把所有的資料都列印出來螢幕上！
+
+那如果是『oo*』呢？則第一個 o 肯定必須要存在，第二個 o 則是可有可無的多個 o ， 所以，凡是含有 o, oo, ooo, oooo 等等，都可以被列出來～
+
+同理，當我們需要『至少兩個 o 以上的字串』時，就需要 ooo* ，亦即是：
+
+```bash
+kevin@Kevin-Laptop:~/os$ grep -n 'ooo*' ./os_note/regex/regular_express.txt 
+1:"Open Source" is a good mechanism to develop programs.
+2:apple is my favorite food.
+3:Football game is not use feet only.
+9:Oh! The soup taste good.^M
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+```
+
+這樣理解 * 的意義了嗎？好了，現在出個練習，如果我想要字串開頭與結尾都是 g，但是兩個 g 之間僅能存在至少一個 o ，亦即是 gog, goog, gooog.... 等等，那該如何？
+
+```bash
+[dmtsai@study ~]$ grep -n 'goo*g' regular_express.txt
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+```
+
+如此瞭解了嗎？再來一題，如果我想要找出 g 開頭與 g 結尾的字串，當中的字元可有可無，那該如何是好？是『g*g』嗎？
+
+```bash
+kevin@Kevin-Laptop:~/os$ grep -n 'g*g' ./os_note/regex/regular_express.txt 
+1:"Open Source" is a good mechanism to develop programs.
+3:Football game is not use feet only.
+9:Oh! The soup taste good.^M
+13:Oh!     My god!
+14:The gd software is a library for drafting programs.^M
+16:The world <Happy> is the same with "glad".
+17:I like dog.
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+20:go! go! Let's go.
+```
+
+但測試的結果竟然出現這麼多行？太詭異了吧？其實一點也不詭異，因為 g*g 裡面的 g* 代表『空字元或一個以上的 g』 在加上後面的 g ，因此，整個 RE 的內容就是 g, gg, ggg, gggg ， 因此，只要該行當中擁有一個以上的 g 就符合所需了！
+
+那該如何得到我們的 g....g 的需求呢？呵呵！就利用任意一個字元『.』啊！ 亦即是：『g.*g』的作法，因為 * 可以是 0 或多個重複前面的字符，而 . 是任意字元，所以： 『.* 就代表零個或多個任意字元』的意思啦！
+
+```bash
+kevin@Kevin-Laptop:~/os$ grep -n 'g.*g' ./os_note/regex/regular_express.txt 
+1:"Open Source" is a good mechanism to develop programs.
+14:The gd software is a library for drafting programs.^M
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+20:go! go! Let's go.
+```
+
+因為是代表 g 開頭與 g 結尾，中間任意字元均可接受，所以，第 1, 14, 20 行是可接受的喔！ 這個 .* 的 RE 表示任意字元是很常見的，希望大家能夠理解並且熟悉！ 再出一題，如果我想要找出『任意數字』的行列呢？因為僅有數字，所以就成為：
+
+```bash
+kevin@Kevin-Laptop:~/os$ grep -n '[0-9][0-9]*' ./os_note/regex/regular_express.txt 
+5:However, this dress is about $ 3183 dollars.^M
+15:You are the best is mean you are the no. 1.
+```
+
+雖然使用 grep -n '[0-9]' regular_express.txt 也可以得到相同的結果， 但鳥哥希望大家能夠理解上面指令當中 RE 表示法的意義才好！
+
+#### 例題五、限定連續 RE 字符範圍 {}
+
+在上個例題當中，我們可以利用 . 與 RE 字符及 * 來設定 0 個到無限多個重複字元， **那如果我想要限制一個範圍區間內的重複字元數呢**？舉例來說，我想要找出兩個到五個 o 的連續字串，該如何作？這時候就得要使用到限定範圍的字符 {} 了。 但根據正規表示法的處理原則，要讓 { 生效，得要加上反斜線， 亦即使用 \{ 才能成功的讓限定連續 RE 字符範圍的功能生效喔！ 至於 {} 的語法是這樣的，假設我要找到兩個 o 的字串，可以是：
+
+```bash
+kevin@Kevin-Laptop:~/os$ grep -n 'o\{2\}' ./os_note/regex/regular_express.txt 
+1:"Open Source" is a good mechanism to develop programs.
+2:apple is my favorite food.
+3:Football game is not use feet only.
+9:Oh! The soup taste good.^M
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+```
+這樣看似乎與 ooo* 的字符沒有什麼差異啊？因為第 19 行有多個 o 依舊也出現了！ 好，那麼換個搜尋的字串，假設我們要找出 g 後面接 2 到 5 個 o ，然後再接一個 g 的字串，他會是這樣：
+```bash
+kevin@Kevin-Laptop:~/os$ grep -n 'go\{2,5\}g' ./os_note/regex/regular_express.txt 
+18:google is the best tools for search keyword
+```
+
+嗯！很好！第 19 行終於沒有被取用了(因為 19 行有 6 個 o 啊！)。 那麼，如果我想要的是 2 個 o 以上的 goooo....g 呢？除了可以是 gooo*g ，也可以是：
+
+```bash
+kevin@Kevin-Laptop:~/os$ grep -n 'go\{2,\}g' ./os_note/regex/regular_express.txt 
+18:google is the best tools for search keyword.
+19:goooooogle yes!
+```
+
+呵呵！就可以找出來啦～
+
+### 11.2.4 基礎正規表示法字符彙整 (characters)
+
+經過了上面的幾個簡單的範例，我們可以將基礎的正規表示法特殊字符彙整如下：
+
+|RE 字符|意義與範例|
+|--- |--- |
+|^word|意義：待搜尋的字串(word)在行首！範例：搜尋行首為 # 開始的那一行，並列出行號 ``` grep -n '^#' regular_express.txt```|
+|word$|意義：待搜尋的字串(word)在行尾！範例：將行尾為 ! 的那一行列印出來，並列出行號 ``` grep -n '!$' regular_express.txt ```
+|.|意義：代表『一定有一個任意字元』的字符！範例：搜尋的字串可以是 (eve) (eae) (eee) (e e)， 但不能僅有 (ee) ！亦即 e 與 e 中間『一定』僅有一個字元，而空白字元也是字元！``` grep -n 'e.e' regular_express.txt ```
+|\ | 意義：透過 shell 的跳脫字符，將特殊符號的特殊意義去除！意義：透過 shell 的跳脫字符，將特殊符號的特殊意義去除！```grep -n \' regular_express.txt``` 
+| * | 	意義：重複零個到無窮多個的前一個 RE 字符 範例：找出含有 (es) (ess) (esss) 等等的字串，注意，因為 * 可以是 0 個，所以 es 也是符合帶搜尋字串。另外，因為 * 為重複『前一個 RE 字符』的符號， 因此，在 * 之前必須要緊接著一個 RE 字符喔！例如任意字元則為 『.*』 ！``` grep -n 'ess*' regular_express.txt ``` 
+| [list] | 	意義：字元集合的 RE 字符，裡面列出想要擷取的字元！ 範例：搜尋含有 (gl) 或 (gd) 的那一行，需要特別留意的是，在 [] 當中『謹代表一個待搜尋的字元』， 例如『 a[afl]y 』代表搜尋的字串可以是 aay, afy, aly 即 [afl] 代表 a 或 f 或 l 的意思！``` grep -n 'g[ld]' regular_express.txt ``` 
+|[n1-n2] | 意義：字元集合的 RE 字符，裡面列出想要擷取的字元範圍！範例：搜尋含有任意數字的那一行！需特別留意，在字元集合 [] 中的減號 - 是有特殊意義的，他代表兩個字元之間的所有連續字元！但這個連續與否與 ASCII 編碼有關，因此，你的編碼需要設定正確(在 bash 當中，需要確定LANG 與 LANGUAGE 的變數是否正確！) 例如所有大寫字元則為 [A-Z] ``` grep -n '[A-Z]' regular_express.txt ``` 
+|[^list] | 意義：字元集合的 RE 字符，裡面列出不要的字串或範圍！範例：搜尋的字串可以是 (oog) (ood) 但不能是 (oot) ，那個 ^ 在 [] 內時，代表的意義是『反向選擇』的意思。 例如，我不要大寫字元，則為 [^A-Z]。但是，需要特別注意的是，如果以 ```grep -n [^A-Z] regular_express.txt ```來搜尋，卻發現該檔案內的所有行都被列出，為什麼？因為這個 [^A-Z] 是『非大寫字元』的意思， 因為每一行均有非大寫字元，例如第一行的 "Open Source" 就有 p,e,n,o.... 等等的小寫字 ```grep -n 'oo[^t]' regular_express.txt ``` 
+| \\{n,m\\} | 意義：連續 n 到 m 個的『前一個 RE 字符』意義：若為 \{n\} 則是連續 n 個的前一個 RE 字符，意義：若是 \{n,\} 則是連續 n 個以上的前一個 RE 字符！ 範例：在 g 與 g 之間有 2 個到 3 個的 o 存在的字串，亦即 (goog)(gooog) ``` grep -n 'go\{2,3\}g' regular_express.txt ```|
+
+再次強調：『正規表示法的特殊字元』與一般在指令列輸入指令的『萬用字元』並不相同， 例如，在萬用字元當中的 * 代表的是『 0 ~ 無限多個字元』的意思，但是在正規表示法當中， * 則是『重複 0 到無窮多個的前一個 RE 字符』的意思～使用的意義並不相同，不要搞混了！
+
+舉例來說，不支援正規表示法的 ls 這個工具中，若我們使用 『```ls -l * ```』 代表的是任意檔名的檔案，而 『ls -l a* 』代表的是以 a 為開頭的任何檔名的檔案， 但在正規表示法中，我們要找到含有以 a 為開頭的檔案，則必須要這樣：(需搭配支援正規表示法的工具)
+
+```bash
+ls | grep -n '^a.*'
+```
+
+>例題：
+以 ls -l 配合 grep 找出 /etc/ 底下檔案類型為連結檔屬性的檔名
+答：
+由於 ls -l 列出連結檔時標頭會是『 lrwxrwxrwx 』，因此使用如下的指令即可找出結果：```ls -l /etc | grep '^l'```
+若僅想要列出幾個檔案，再以『 ```|wc -l``` 』 來累加處理即可。
+
+### 11.2.5 sed 工具
+
+在瞭解了一些正規表示法的基礎應用之後，再來呢？呵呵～兩個東西可以玩一玩的，那就是 sed 跟底下會介紹的 awk 了！ 這兩個傢伙可是相當的有用的啊！舉例來說，鳥哥寫的 logfile.sh 分析登錄檔的小程式 (第十八章會談到)，絕大部分分析關鍵字的取用、統計等等，就是用這兩個寶貝蛋來幫我完成的！那麼你說，要不要玩一玩啊？^_^
+
+我們先來談一談 sed 好了， sed 本身也是一個管線命令，可以分析 standard input 的啦！ 而且 sed 還可以將資料進行取代、刪除、新增、擷取特定行等等的功能呢！很不錯吧～ 我們先來瞭解一下 sed 的用法，再來聊他的用途好了！
+
+```bash
+[dmtsai@study ~]$ sed [-nefr] [動作]
+選項與參數：
+-n  ：使用安靜(silent)模式。在一般 sed 的用法中，所有來自 STDIN 的資料一般都會被列出到螢幕上。
+      但如果加上 -n 參數後，則只有經過 sed 特殊處理的那一行(或者動作)才會被列出來。
+-e  ：直接在指令列模式上進行 sed 的動作編輯；
+-f  ：直接將 sed 的動作寫在一個檔案內， -f filename 則可以執行 filename 內的 sed 動作；
+-r  ：sed 的動作支援的是延伸型正規表示法的語法。(預設是基礎正規表示法語法)
+-i  ：直接修改讀取的檔案內容，而不是由螢幕輸出。
+
+動作說明：  [n1[,n2]]function
+n1, n2 ：不見得會存在，一般代表『選擇進行動作的行數』，舉例來說，如果我的動作
+         是需要在 10 到 20 行之間進行的，則『 10,20[動作行為] 』
+
+function 有底下這些咚咚：
+a   ：新增， a 的後面可以接字串，而這些字串會在新的一行出現(目前的下一行)～
+c   ：取代， c 的後面可以接字串，這些字串可以取代 n1,n2 之間的行！
+d   ：刪除，因為是刪除啊，所以 d 後面通常不接任何咚咚；
+i   ：插入， i 的後面可以接字串，而這些字串會在新的一行出現(目前的上一行)；
+p   ：列印，亦即將某個選擇的資料印出。通常 p 會與參數 sed -n 一起運作～
+s   ：取代，可以直接進行取代的工作哩！通常這個 s 的動作可以搭配正規表示法！
+      例如 1,20s/old/new/g 就是啦！
+```
+
+#### 以行為單位的新增/刪除功能
+
+sed 光是用看的是看不懂的啦！所以又要來練習了！先來玩玩刪除與新增的功能吧！
+
+```bash
+範例一：將 /etc/passwd 的內容列出並且列印行號，同時，請將第 2~5 行刪除！
+[dmtsai@study ~]$ nl /etc/passwd | sed '2,5d'
+     1  root:x:0:0:root:/root:/bin/bash
+     6  sync:x:5:0:sync:/sbin:/bin/sync
+     7  shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+.....(後面省略).....
+kevin@Kevin-Laptop:~/os$ nl os_note/regex/regular_express.txt | sed '2,5d'
+     1  "Open Source" is a good mechanism to develop programs.
+     6  GNU is free air not free beer.^M
+     7  Her hair is very beauty.^M
+     8  I can't finish the test.^M
+     9  Oh! The soup taste good.^M
+    10  motorcycle is cheap than car.
+    11  This window is clear.
+    12  the symbol '*' is represented as start.
+    13  Oh!     My god!
+    14  The gd software is a library for drafting programs.^M
+    15  You are the best is mean you are the no. 1.
+    16  The world <Happy> is the same with "glad".
+    17  I like dog.
+    18  google is the best tools for search keyword.
+    19  goooooogle yes!
+    20  go! go! Let's go.
+    21  # I am VBird
+```
+
+看到了吧？sed 的動作為 '2,5d' ，那個 d 就是刪除！因為 2-5 行給他刪除了，所以顯示的資料就沒有 2-5 行囉～ 另外，注意一下，原本應該是要下達 sed -e 才對，沒有 -e 也行啦！同時也要注意的是， sed 後面接的動作，請務必以 '' 兩個單引號括住喔！
+
+如果題型變化一下，舉例來說，如果只要刪除第 2 行，可以使用『 ```nl /etc/passwd | sed '2d'``` 』來達成， 至於若是要刪除第 3 到最後一行，則是『 ```nl /etc/passwd | sed '3,$d'``` 』的啦，那個錢字號『 ```$ ```』代表最後一行！
+
+```bash
+範例二：承上題，在第二行後(亦即是加在第三行)加上『drink tea?』字樣！
+[dmtsai@study ~]$ nl /etc/passwd | sed '2a drink tea'
+     1  root:x:0:0:root:/root:/bin/bash
+     2  bin:x:1:1:bin:/bin:/sbin/nologin
+drink tea
+     3  daemon:x:2:2:daemon:/sbin:/sbin/nologin
+.....(後面省略).....
+kevin@Kevin-Laptop:~/os$ nl os_note/regex/regular_express.txt | sed '2a test'
+     1  "Open Source" is a good mechanism to develop programs.
+     2  apple is my favorite food.
+test
+     3  Football game is not use feet only.
+     4  this dress doesn't fit me.
+     5  However, this dress is about $ 3183 dollars.^M
+     6  GNU is free air not free beer.^M
+     7  Her hair is very beauty.^M
+     8  I can't finish the test.^M
+     9  Oh! The soup taste good.^M
+    10  motorcycle is cheap than car.
+    11  This window is clear.
+    12  the symbol '*' is represented as start.
+    13  Oh!     My god!
+    14  The gd software is a library for drafting programs.^M
+    15  You are the best is mean you are the no. 1.
+    16  The world <Happy> is the same with "glad".
+    17  I like dog.
+    18  google is the best tools for search keyword.
+    19  goooooogle yes!
+    20  go! go! Let's go.
+    21  # I am VBird
+```
+
+嘿嘿！在 a 後面加上的字串就已將出現在第二行後面囉！那如果是要在第二行前呢？『 ```nl /etc/passwd | sed '2i drink tea'```』就對啦！就是將『 a 』變成『 i 』即可。 增加一行很簡單，那如果是要增將兩行以上呢？
+
+```bash
+[dmtsai@study ~]$ nl /etc/passwd | sed '2a Drink tea or ......\
+> drink beer ?'
+     1  root:x:0:0:root:/root:/bin/bash
+     2  bin:x:1:1:bin:/bin:/sbin/nologin
+Drink tea or ......
+drink beer ?
+     3  daemon:x:2:2:daemon:/sbin:/sbin/nologin
+.....(後面省略)....
+```
+
+這個範例的重點是『我們可以新增不只一行喔！可以新增好幾行』但是每一行之間都必須要以反斜線『 \ 』來進行新行的增加喔！所以，上面的例子中，我們可以發現在第一行的最後面就有 \ 存在啦！在多行新增的情況下， \ 是一定要的喔！
+
+#### 以行為單位的取代與顯示功能
+
+剛剛是介紹如何新增與刪除，那麼如果要整行取代呢？看看底下的範例吧：
+
+```bash
+範例四：我想將第2-5行的內容取代成為『No 2-5 number』呢？
+[dmtsai@study ~]$ nl /etc/passwd | sed '2,5c No 2-5 number'
+     1  root:x:0:0:root:/root:/bin/bash
+No 2-5 number
+     6  sync:x:5:0:sync:/sbin:/bin/sync
+.....(後面省略).....
+```
+
+透過這個方法我們就能夠將資料整行取代了！非常容易吧！sed 還有更好用的東東！我們以前想要列出第 11~20 行， 得要透過『```head -n 20 | tail -n 10```』之類的方法來處理，很麻煩啦～ sed 則可以簡單的直接取出你想要的那幾行！是透過行號來捉的喔！看看底下的範例先：
+```bash
+範例五：僅列出 /etc/passwd 檔案內的第 5-7 行
+[dmtsai@study ~]$ nl /etc/passwd | sed -n '5,7p'
+     5  lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+     6  sync:x:5:0:sync:/sbin:/bin/sync
+     7  shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+kevin@Kevin-Laptop:~/os$ nl /etc/passwd | sed -n '5,7p'
+     5  sync:x:4:65534:sync:/bin:/bin/sync
+     6  games:x:5:60:games:/usr/games:/usr/sbin/nologin
+     7  man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+```
+
+上述的指令中有個重要的選項『 -n 』，按照說明文件，這個 -n 代表的是『安靜模式』！ 那麼為什麼要使用安靜模式呢？你可以自行下達 sed '5,7p' 就知道了 (5-7 行會重複輸出)！ 有沒有加上 -n 的參數時，輸出的資料可是差很多的喔！你可以透過這個 sed 的以行為單位的顯示功能， 就能夠將某一個檔案內的某些行號捉出來查閱！很棒的功能！不是嗎？
+```bash
+kevin@Kevin-Laptop:~/os$ nl /etc/passwd | sed '5,7p'
+     1  root:x:0:0:root:/root:/bin/bash
+     2  daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+     3  bin:x:2:2:bin:/bin:/usr/sbin/nologin
+     4  sys:x:3:3:sys:/dev:/usr/sbin/nologin
+     5  sync:x:4:65534:sync:/bin:/bin/sync
+     5  sync:x:4:65534:sync:/bin:/bin/sync
+     6  games:x:5:60:games:/usr/games:/usr/sbin/nologin
+     6  games:x:5:60:games:/usr/games:/usr/sbin/nologin
+     7  man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+     7  man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+     8  lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+     9  mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+    10  news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+    11  uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+    12  proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+    13  www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+    14  backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+    15  list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+    16  irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
+    17  gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+    18  nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+    19  systemd-network:x:100:102:systemd Network Management,,,:/run/systemd:/usr/sbin/nologin
+    20  systemd-resolve:x:101:103:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin
+    21  messagebus:x:102:105::/nonexistent:/usr/sbin/nologin
+    22  systemd-timesync:x:103:106:systemd Time Synchronization,,,:/run/systemd:/usr/sbin/nologin
+    23  syslog:x:104:111::/home/syslog:/usr/sbin/nologin
+    24  _apt:x:105:65534::/nonexistent:/usr/sbin/nologin
+    25  uuidd:x:106:112::/run/uuidd:/usr/sbin/nologin
+    26  tcpdump:x:107:113::/nonexistent:/usr/sbin/nologin
+    27  kevin:x:1000:1000:,,,:/home/kevin:/bin/bash
+```
+
+#### 部分資料的搜尋並取代的功能
+
+除了整行的處理模式之外， sed 還可以用行為單位進行部分資料的搜尋並取代的功能喔！ 基本上 sed 的搜尋與取代的與 vi 相當的類似！他有點像這樣：
+```bash
+sed 's/要被取代的字串/新的字串/g'
+```
+
+上表中特殊字體的部分為關鍵字，請記下來！至於三個斜線分成兩欄就是新舊字串的替換啦！ 我們使用底下這個取得 IP 數據的範例，一段一段的來處理給您瞧瞧，讓你瞭解一下什麼是咱們所謂的搜尋並取代吧！
