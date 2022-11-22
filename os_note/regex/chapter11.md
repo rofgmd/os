@@ -661,3 +661,420 @@ sed 's/要被取代的字串/新的字串/g'
 ```
 
 上表中特殊字體的部分為關鍵字，請記下來！至於三個斜線分成兩欄就是新舊字串的替換啦！ 我們使用底下這個取得 IP 數據的範例，一段一段的來處理給您瞧瞧，讓你瞭解一下什麼是咱們所謂的搜尋並取代吧！
+
+```bash
+kevin@Kevin-Laptop:~/os$ ifconfig
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 172.24.83.41  netmask 255.255.240.0  broadcast 172.24.95.255
+        inet6 fe80::215:5dff:fe7c:a2df  prefixlen 64  scopeid 0x20<link>
+        ether 00:15:5d:7c:a2:df  txqueuelen 1000  (Ethernet)
+        RX packets 439  bytes 139850 (139.8 KB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 110  bytes 15791 (15.7 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 1364  bytes 10687921 (10.6 MB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 1364  bytes 10687921 (10.6 MB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+kevin@Kevin-Laptop:~/os$ ifconfig eth0 | grep 'inet '
+        inet 172.24.83.41  netmask 255.255.240.0  broadcast 172.24.95.255
+kevin@Kevin-Laptop:~/os$ ifconfig eth0 | grep 'inet ' | sed 's/^.*inet //g'
+172.24.83.41  netmask 255.255.240.0  broadcast 172.24.95.255
+# sed 's/^.*inet //g' 删除从头到inet的内容
+kevin@Kevin-Laptop:~/os$ ifconfig eth0 | grep 'inet ' | sed 's/^.*inet //g' \
+> | sed 's/ *netmask.*$//g'
+172.24.83.41
+# sed 's/ *netmask.*$//g' 删除从netmask到尾的内容
+```
+
+透過這個範例的練習也建議您依據此一步驟來研究你的指令！就是先觀察，然後再一層一層的試做， 如果有做不對的地方，就先予以修改，改完之後測試，成功後再往下繼續測試。以鳥哥上面的介紹中， 那一大串指令就做了四個步驟！對吧！ ^_^
+
+#### 直接修改檔案內容(危險動作)
+
+你以為 sed 只有這樣的能耐嗎？那可不！ sed 甚至可以直接修改檔案的內容呢！而不必使用管線命令或資料流重導向！ 不過，由於這個動作會直接修改到原始的檔案，所以請你千萬不要隨便拿系統設定檔來測試喔！ 我們還是使用你下載的 regular_express.txt 檔案來測試看看吧！
+
+```bash
+範例六：利用 sed 將 regular_express.txt 內每一行結尾若為 . 則換成 !
+[dmtsai@study ~]$ sed -i 's/\.$/\!/g' regular_express.txt
+# 上頭的 -i 選項可以讓你的 sed 直接去修改後面接的檔案內容而不是由螢幕輸出喔！
+# 這個範例是用在取代！請您自行 cat 該檔案去查閱結果囉！
+
+範例七：利用 sed 直接在 regular_express.txt 最後一行加入『# This is a test』
+[dmtsai@study ~]$ sed -i '$a # This is a test' regular_express.txt
+# 由於 $ 代表的是最後一行，而 a 的動作是新增，因此該檔案最後新增囉！
+```
+
+sed 的『 -i 』選項可以直接修改檔案內容，這功能非常有幫助！舉例來說，如果你有一個 100 萬行的檔案，你要在第 100 行加某些文字，此時使用 vim 可能會瘋掉！因為檔案太大了！那怎辦？就利用 sed 啊！透過 sed 直接修改/取代的功能，你甚至不需要使用 vim 去修訂！很棒吧！
+
+總之，這個 sed 不錯用啦！而且很多的 shell script 都會使用到這個指令的功能～ sed 可以幫助系統管理員管理好日常的工作喔！要仔細的學習呢！
+
+## 11.3 延伸正規表示法
+
+事實上，一般讀者只要瞭解基礎型的正規表示法大概就已經相當足夠了，不過，某些時刻為了要簡化整個指令操作， 瞭解一下使用範圍更廣的延伸型正規表示法的表示式會更方便呢！舉個簡單的例子好了，在上節的例題三的最後一個例子中，我們要去除空白行與行首為 # 的行列，使用的是
+```bash
+grep -v '^$' regular_express.txt | grep -v '^#'
+```
+需要使用到管線命令來搜尋兩次！那麼如果使用延伸型的正規表示法，我們可以簡化為：
+```bash
+egrep -v '^$|^#' regular_express.txt
+```
+
+延伸型正規表示法可以透過群組功能『 | 』來進行一次搜尋！那個在單引號內的管線意義為『或 or』啦！ 是否變的更簡單呢？此外，grep 預設僅支援基礎正規表示法，如果要使用延伸型正規表示法，你可以使用 grep -E ， 不過更建議直接使用 egrep ！直接區分指令比較好記憶！其實 egrep 與 grep -E 是類似命令別名的關係啦！
+
+熟悉了正規表示法之後，到這個延伸型的正規表示法，你應該也會想到，不就是多幾個重要的特殊符號嗎？ ^_^y 是的～所以，我們就直接來說明一下，延伸型正規表示法有哪幾個特殊符號？由於底下的範例還是有使用到 regular_express.txt ，不巧的是剛剛我們可能將該檔案修改過了 @_@，所以，請重新下載該檔案來練習喔！
+
+|RE 字符 | 意義與範例 |
+|--- | ---|
+| + | 意義：重複『一個或一個以上』的前一個 RE 字符 範例：搜尋 (god) (good) (goood)... 等等的字串。 那個 o+ 代表『一個以上的 o 』所以，底下的執行成果會將第1, 9, 13 行列出來。```egrep -n 'go+d' regular_express.txt``` |
+| ? | 意義：『零個或一個』的前一個 RE 字符 範例：搜尋 (gd) (god) 這兩個字串。 那個 o? 代表『空的或 1 個 o 』所以，上面的執行成果會將第 13, 14 行列出來。 有沒有發現到，這兩個案例( 'go+d' 與 'go?d' )的結果集合與 'go*d' 相同？ 想想看，這是為什麼喔！ ^_^ ```egrep -n 'go?d' regular_express.txt```|
+| \| | 意義：用或( or )的方式找出數個字串 範例：搜尋 gd 或 good 這兩個字串，注意，是『或』！ 所以，第 1,9,14 這三行都可以被列印出來喔！那如果還想要找出 dog 呢？```egrep -n 'gd|good' regular_express.txt egrep -n 'gd|good|dog' regular_express.txt ```|
+| () | 意義：找出『群組』字串 範例：搜尋 (glad) 或 (good) 這兩個字串，因為 g 與 d 是重複的，所以， 我就可以將 la 與 oo 列於 ( ) 當中，並以 \| 來分隔開來，就可以啦！ ```egrep -n 'g(la|oo)d' regular_express.txt``` |
+|()+| 意義：多個重複群組的判別 範例：將『AxyzxyzxyzxyzC』用 echo 叫出，然後再使用如下的方法搜尋一下！```echo 'AxyzxyzxyzxyzC' | egrep 'A(xyz)+C'``` 上面的例子意思是說，我要找開頭是 A 結尾是 C ，中間有一個以上的 "xyz" 字串的意思～| 
+
+```bash
+kevin@Kevin-Laptop:~/os$ egrep -n 'go+d' ./os_note/regex/regular_express.txt 
+1:"Open Source" is a good mechanism to develop programs.
+9:Oh! The soup taste good.^M
+13:Oh!     My god!
+
+kevin@Kevin-Laptop:~/os$ egrep -n 'go?d' ./os_note/regex/regular_express.txt 
+13:Oh!     My god!
+14:The gd software is a library for drafting programs.^M
+
+kevin@Kevin-Laptop:~/os$ egrep -n 'gd|good|dog' ./os_note/regex/regular_express.txt 
+1:"Open Source" is a good mechanism to develop programs.
+9:Oh! The soup taste good.^M
+14:The gd software is a library for drafting programs.^M
+17:I like dog.
+```
+
+以上這些就是延伸型的正規表示法的特殊字元。另外，要特別強調的是，那個 ! 在正規表示法當中並不是特殊字元， 所以，如果你想要查出來檔案中含有 ! 與 > 的字行時，可以這樣：
+
+```bash
+grep -n '[!>]' regular_express.txt
+```
+這樣可以瞭解了嗎？常常看到有陷阱的題目寫：『反向選擇這樣對否？ '[!a-z]'？』， 呵呵！是錯的呦～要 '[^a-z] 才是對的！至於更多關於正規表示法的進階文章，請參考文末的參考資料(註2)
+
+## 11.4 文件的格式化與相關處理
+
+接下來讓我們來將文件進行一些簡單的編排吧！底下這些動作可以將你的訊息進行排版的動作， 不需要重新以 vim 去編輯，透過資料流重導向配合底下介紹的 printf 功能，以及 awk 指令， 就可以讓你的訊息以你想要的模樣來輸出了！試看看吧！
+
+### 11.4.1 格式化列印： printf
+
+在很多時候，我們可能需要將自己的資料給他格式化輸出的！ 舉例來說，考試卷分數的輸出，姓名與科目及分數之間，總是可以稍微作個比較漂亮的版面配置吧？ 例如我想要輸出底下的樣式：
+
+```dotnetcli
+Name     Chinese   English   Math    Average
+DmTsai        80        60     92      77.33
+VBird         75        55     80      70.00
+Ken           60        90     70      73.33
+```
+
+上表的資料主要分成五個欄位，各個欄位之間可使用 tab 或空白鍵進行分隔。 請將上表的資料轉存成為 printf.txt 檔名，等一下我們會利用這個檔案來進行幾個小練習的。 因為每個欄位的原始資料長度其實並非是如此固定的 (Chinese 長度就是比 Name 要多)， 而我就是想要如此表示出這些資料，此時，就得需要列印格式管理員 printf 的幫忙了！ printf 可以幫我們將資料輸出的結果格式化，而且而支援一些特殊的字符～底下我們就來看看！
+
+```bash
+[dmtsai@study ~]$ printf '列印格式' 實際內容
+選項與參數：
+關於格式方面的幾個特殊樣式：
+       \a    警告聲音輸出
+       \b    倒退鍵(backspace)
+       \f    清除螢幕 (form feed)
+       \n    輸出新的一行
+       \r    亦即 Enter 按鍵
+       \t    水平的 [tab] 按鍵
+       \v    垂直的 [tab] 按鍵
+       \xNN  NN 為兩位數的數字，可以轉換數字成為字元。
+關於 C 程式語言內，常見的變數格式
+       %ns   那個 n 是數字， s 代表 string ，亦即多少個字元；
+       %ni   那個 n 是數字， i 代表 integer ，亦即多少整數位數；
+       %N.nf 那個 n 與 N 都是數字， f 代表 floating (浮點)，如果有小數位數，
+             假設我共要十個位數，但小數點有兩位，即為 %10.2f 囉！
+```
+
+接下來我們來進行幾個常見的練習。假設所有的資料都是一般文字 (這也是最常見的狀態)，因此最常用來分隔資料的符號就是 [Tab] 啦！因為 [Tab] 按鍵可以將資料作個整齊的排列！那麼如何利用 printf 呢？參考底下這個範例：
+
+```bash
+範例一：將剛剛上頭資料的檔案 (printf.txt) 內容僅列出姓名與成績：(用 [tab] 分隔)
+[dmtsai@study ~]$ printf '%s\t %s\t %s\t %s\t %s\t \n' $(cat printf.txt)
+Name     Chinese         English         Math    Average
+DmTsai   80      60      92      77.33
+VBird    75      55      80      70.00
+Ken      60      90      70      73.33
+```
+
+由於 printf 並不是管線命令，因此我們得要透過類似上面的功能，將檔案內容先提出來給 printf 作為後續的資料才行。 如上所示，我們將每個資料都以 [tab] 作為分隔，但是由於 Chinese 長度太長，導致 English 中間多了一個 [tab] 來將資料排列整齊！啊～結果就看到資料對齊結果的差異了！
+
+另外，在 printf 後續的那一段格式中，%s 代表一個不固定長度的字串，而字串與字串中間就以 \t 這個 [tab] 分隔符號來處理！你要記得的是，由於 \t 與 %s 中間還有空格，因此每個字串間會有一個 [tab] 與一個空白鍵的分隔喔！
+
+既然每個欄位的長度不固定會造成上述的困擾，那我將每個欄位固定就好啦！沒錯沒錯！這樣想非常好！ 所以我們就將資料給他進行固定欄位長度的設計吧！
+
+```bash
+範例二：將上述資料關於第二行以後，分別以字串、整數、小數點來顯示：
+[dmtsai@study ~]$ printf '%10s %5i %5i %5i %8.2f \n' $(cat printf.txt | grep -v Name)
+    DmTsai    80    60    92    77.33
+     VBird    75    55    80    70.00
+       Ken    60    90    70    73.33
+```
+
+上面這一串格式想必您看得很辛苦！沒關係！一個一個來解釋！上面的格式共分為五個欄位， %10s 代表的是一個長度為 10 個字元的字串欄位，%5i 代表的是長度為 5 個字元的數字欄位，至於那個 %8.2f 則代表長度為 8 個字元的具有小數點的欄位，其中小數點有兩個字元寬度。我們可以使用底下的說明來介紹 %8.2f 的意義：
+
+字元寬度： 12345678
+%8.2f意義：00000.00
+如上所述，全部的寬度僅有 8 個字元，整數部分佔有 5 個字元，小數點本身 (.) 佔一位，小數點下的位數則有兩位。 這種格式經常使用於數值程式的設計中！這樣瞭解乎？自己試看看如果要將小數點位數變成 1 位又該如何處理？
+
+printf 除了可以格式化處理之外，他還可以依據 ASCII 的數字與圖形對應來顯示資料喔(註3)！ 舉例來說 16 進位的 45 可以得到什麼 ASCII 的顯示圖 (其實是字元啦)？
+```bash
+範例三：列出 16 進位數值 45 代表的字元為何？
+[dmtsai@study ~]$ printf '\x45\n'
+E
+# 這東西也很好玩～他可以將數值轉換成為字元，如果你會寫 script 的話，
+# 可以自行測試一下，由 20~80 之間的數值代表的字元是啥喔！ ^_^
+```
+
+printf 的使用相當的廣泛喔！包括等一下後面會提到的 awk 以及在 C 程式語言當中使用的螢幕輸出， 都是利用 printf 呢！鳥哥這裡也只是列出一些可能會用到的格式而已，有興趣的話，可以自行多作一些測試與練習喔！ ^_^
+
+### 11.4.2 awk：好用的資料處理工具
+
+awk 也是一個非常棒的資料處理工具！相較於 sed 常常作用於一整個行的處理， awk 則比較傾向於一行當中分成數個『欄位』來處理。因此，awk 相當的適合處理小型的數據資料處理呢！awk 通常運作的模式是這樣的：
+```bash
+[dmtsai@study ~]$ awk '條件類型1{動作1} 條件類型2{動作2} ...' filename
+```
+awk 後面接兩個單引號並加上大括號 {} 來設定想要對資料進行的處理動作。 awk 可以處理後續接的檔案，也可以讀取來自前個指令的 standard output 。 但如前面說的， awk 主要是處理『每一行的欄位內的資料』，而預設的『欄位的分隔符號為 "空白鍵" 或 "[tab]鍵" 』！舉例來說，我們用 last 可以將登入者的資料取出來，結果如下所示
+```bash
+kevin@Kevin-Laptop:~/os$ last -n 5
+
+wtmp begins Thu Nov 17 14:49:11 2022
+
+[dmtsai@study ~]$ last -n 5 <==僅取出前五行
+dmtsai   pts/0     192.168.1.100   Tue Jul 14 17:32   still logged in
+dmtsai   pts/0     192.168.1.100   Thu Jul  9 23:36 - 02:58  (03:22)
+dmtsai   pts/0     192.168.1.100   Thu Jul  9 17:23 - 23:36  (06:12)
+dmtsai   pts/0     192.168.1.100   Thu Jul  9 08:02 - 08:17  (00:14)
+dmtsai   tty1                      Fri May 29 11:55 - 12:11  (00:15)
+```
+
+若我想要取出帳號與登入者的 IP ，且帳號與 IP 之間以 [tab] 隔開，則會變成這樣：
+
+```bash
+[dmtsai@study ~]$ last -n 5 | awk '{print $1 "\t" $3}'
+dmtsai  192.168.1.100
+dmtsai  192.168.1.100
+dmtsai  192.168.1.100
+dmtsai  192.168.1.100
+dmtsai  Fri
+```
+
+上表是 awk 最常使用的動作！透過 print 的功能將欄位資料列出來！欄位的分隔則以空白鍵或 [tab] 按鍵來隔開。 因為不論哪一行我都要處理，因此，就不需要有 "條件類型" 的限制！我所想要的是第一欄以及第三欄， 但是，第五行的內容怪怪的～這是因為資料格式的問題啊！所以囉～使用 awk 的時候，請先確認一下你的資料當中，如果是連續性的資料，請不要有空格或 [tab] 在內，否則，就會像這個例子這樣，會發生誤判喔！
+
+另外，由上面這個例子你也會知道，在 awk 的括號內，每一行的每個欄位都是有變數名稱的，那就是 $1, $2... 等變數名稱。以上面的例子來說， dmtsai 是 $1 ，因為他是第一欄嘛！至於 192.168.1.100 是第三欄， 所以他就是 $3 啦！後面以此類推～呵呵！還有個變數喔！那就是 $0 ，$0 代表『一整列資料』的意思～以上面的例子來說，第一行的 $0 代表的就是『dmtsai .... 』那一行啊！ 由此可知，剛剛上面五行當中，整個 awk 的處理流程是：
+
+讀入第一行，並將第一行的資料填入 $0, $1, $2.... 等變數當中；
+依據 "條件類型" 的限制，判斷是否需要進行後面的 "動作"；
+做完所有的動作與條件類型；
+若還有後續的『行』的資料，則重複上面 1~3 的步驟，直到所有的資料都讀完為止。
+經過這樣的步驟，你會曉得， awk 是『以行為一次處理的單位』， 而『以欄位為最小的處理單位』。好了，那麼 awk 怎麼知道我到底這個資料有幾行？有幾欄呢？這就需要 awk 的內建變數的幫忙啦～
+
+
+|變數名稱	| 代表意義 |
+|--- | ---|
+|NF	|每一行 ($0) 擁有的欄位總數
+|NR	|目前 awk 所處理的是『第幾行』資料
+|FS	|目前的分隔字元，預設是空白鍵
+
+我們繼續以上面 last -n 5 的例子來做說明，如果我想要：
+
+列出每一行的帳號(就是 $1)；
+列出目前處理的行數(就是 awk 內的 NR 變數)
+並且說明，該行有多少欄位(就是 awk 內的 NF 變數)
+則可以這樣：
+
+```bash
+[dmtsai@study ~]$ last -n 5| awk '{print $1 "\t lines: " NR "\t columns: " NF}'
+dmtsai   lines: 1        columns: 10
+dmtsai   lines: 2        columns: 10
+dmtsai   lines: 3        columns: 10
+dmtsai   lines: 4        columns: 10
+dmtsai   lines: 5        columns: 9
+# 注意喔，在 awk 內的 NR, NF 等變數要用大寫，且不需要有錢字號 $ 啦！
+```
+
+這樣可以瞭解 NR 與 NF 的差別了吧？好了，底下來談一談所謂的 "條件類型" 了吧！
+
+#### awk 的邏輯運算字元
+
+既然有需要用到 "條件" 的類別，自然就需要一些邏輯運算囉～例如底下這些：
+
+|運算單元|	代表意義|
+|---| --- |
+|\> |	大於|
+|<	|小於|
+|\>=	|大於或等於|
+|<=	|小於或等於|
+|==	|等於|
+|!=	|不等於|
+
+值得注意的是那個『 == 』的符號，因為：
+
+邏輯運算上面亦即所謂的大於、小於、等於等判斷式上面，習慣上是以『 == 』來表示；
+如果是直接給予一個值，例如變數設定時，就直接使用 = 而已。
+好了，我們實際來運用一下邏輯判斷吧！舉例來說，在 /etc/passwd 當中是以冒號 ":" 來作為欄位的分隔， 該檔案中第一欄位為帳號，第三欄位則是 UID。那假設我要查閱，第三欄小於 10 以下的數據，並且僅列出帳號與第三欄， 那麼可以這樣做：
+
+```bash
+[dmtsai@study ~]$ cat /etc/passwd | awk '{FS=":"} $3 < 10 {print $1 "\t " $3}'
+root:x:0:0:root:/root:/bin/bash
+bin      1
+daemon   2
+....(以下省略)....
+```
+
+有趣吧！不過，怎麼第一行沒有正確的顯示出來呢？這是因為我們讀入第一行的時候，那些變數 $1, $2... 預設還是以空白鍵為分隔的，所以雖然我們定義了 FS=":" 了， 但是卻僅能在第二行後才開始生效。那麼怎麼辦呢？我們可以預先設定 awk 的變數啊！ 利用 BEGIN 這個關鍵字喔！這樣做：
+
+```bash
+[dmtsai@study ~]$ cat /etc/passwd | awk 'BEGIN {FS=":"} $3 < 10 {print $1 "\t " $3}'
+root     0
+bin      1
+daemon   2
+......(以下省略)......
+```
+
+### 11.4.3 檔案比對工具
+
+什麼時候會用到檔案的比對啊？通常是『同一個套裝軟體的不同版本之間，比較設定檔與原始檔的差異』。 很多時候所謂的檔案比對，通常是用在 ASCII 純文字檔的比對上的！那麼比對檔案的指令有哪些？最常見的就是 diff 囉！ 另外，除了 diff 比對之外，我們還可以藉由 cmp 來比對非純文字檔！同時，也能夠藉由 diff 建立的分析檔， 以處理補丁 (patch) 功能的檔案呢！就來玩玩先！
+
+#### diff
+
+diff 就是用在比對兩個檔案之間的差異的，並且是以行為單位來比對的！一般是用在 ASCII 純文字檔的比對上。 由於是以行為比對的單位，因此 diff 通常是用在同一的檔案(或軟體)的新舊版本差異上！ 舉例來說，假如我們要將 /etc/passwd 處理成為一個新的版本，處理方式為： 將第四行刪除，第六行則取代成為『no six line』，新的檔案放置到 /tmp/test 裡面，那麼應該怎麼做？
+
+```bash
+[dmtsai@study ~]$ diff [-bBi] from-file to-file
+選項與參數：
+from-file ：一個檔名，作為原始比對檔案的檔名；
+to-file   ：一個檔名，作為目的比對檔案的檔名；
+注意，from-file 或 to-file 可以 - 取代，那個 - 代表『Standard input』之意。
+
+-b  ：忽略一行當中，僅有多個空白的差異(例如 "about me" 與 "about     me" 視為相同
+-B  ：忽略空白行的差異。
+-i  ：忽略大小寫的不同。
+
+範例一：比對 regular_express.txt 與 diff.txt 的差異：
+kevin@Kevin-Laptop:~/os$ cp ./os_note/regex/regular_express.txt ./os_note/regex/diff.txt
+kevin@Kevin-Laptop:~/os$ sed -i '$a # This is a test' ./os_note/regex/diff.txt 
+kevin@Kevin-Laptop:~/os$ diff ./os_note/regex/regular_express.txt ./os_note/regex/diff.txt 
+23a24
+> # This is a test
+```
+
+用 diff 比對檔案真的是很簡單喔！不過，你不要用 diff 去比對兩個完全不相干的檔案，因為比不出個啥咚咚！ 另外， diff 也可以比對整個目錄下的差異喔！舉例來說，我們想要瞭解一下不同的開機執行等級 (runlevel) 內容有啥不同？假設你已經知道執行等級 0 與 5 的啟動腳本分別放置到 /etc/rc0.d 及 /etc/rc5.d ， 則我們可以將兩個目錄比對一下：
+
+```bash
+[dmtsai@study ~]$ diff /etc/rc0.d/ /etc/rc5.d/
+Only in /etc/rc0.d/: K90network
+Only in /etc/rc5.d/: S10network
+
+kevin@Kevin-Laptop:~/os$ diff /etc/rc0.d/ /etc/rc5.d/
+Only in /etc/rc0.d/: K01irqbalance
+Only in /etc/rc0.d/: K01plymouth
+Only in /etc/rc0.d/: K01udev
+Only in /etc/rc0.d/: K01unattended-upgrades
+Only in /etc/rc0.d/: K01uuidd
+Only in /etc/rc5.d/: S01apport
+Only in /etc/rc5.d/: S01binfmt-support
+Only in /etc/rc5.d/: S01console-setup.sh
+Only in /etc/rc5.d/: S01cron
+Only in /etc/rc5.d/: S01dbus
+Only in /etc/rc5.d/: S01irqbalance
+Only in /etc/rc5.d/: S01plymouth
+Only in /etc/rc5.d/: S01rsync
+Only in /etc/rc5.d/: S01unattended-upgrades
+Only in /etc/rc5.d/: S01uuidd
+```
+
+#### cmp
+
+相對於 diff 的廣泛用途， cmp 似乎就用的沒有這麼多了～ cmp 主要也是在比對兩個檔案，他主要利用『位元組』單位去比對， 因此，當然也可以比對 binary file 囉～(還是要再提醒喔， diff 主要是以『行』為單位比對， cmp 則是以『位元組』為單位去比對，這並不相同！)
+
+```bash
+[dmtsai@study ~]$ cmp [-l] file1 file2
+選項與參數：
+-l  ：將所有的不同點的位元組處都列出來。因為 cmp 預設僅會輸出第一個發現的不同點。
+
+範例一：用 cmp 比較一下 passwd.old 及 passwd.new
+[dmtsai@study testpw]$ cmp passwd.old passwd.new
+passwd.old passwd.new differ: char 106, line 4
+# 看到了嗎？第一個發現的不同點在第四行，而且位元組數是在第 106 個位元組處！這個 cmp 也可以用來比對 binary 啦！ ^_^
+
+kevin@Kevin-Laptop:~/os$ cmp ./os_note/regex/regular_express.txt ./os_note/regex/diff.txt 
+cmp: EOF on ./os_note/regex/regular_express.txt after byte 661, line 23
+```
+
+#### patch
+
+patch 這個指令與 diff 可是有密不可分的關係啊！我們前面提到，diff 可以用來分辨兩個版本之間的差異， 舉例來說，剛剛我們所建立的 passwd.old 及 passwd.new 之間就是兩個不同版本的檔案。 那麼，如果要『升級』呢？就是『將舊的檔案升級成為新的檔案』時，應該要怎麼做呢？ 其實也不難啦！就是『先比較先舊版本的差異，並將差異檔製作成為補丁檔，再由補丁檔更新舊檔案』即可。 舉例來說，我們可以這樣做測試：
+
+### 11.4.4 檔案列印準備： pr
+
+如果你曾經使用過一些圖形介面的文書處理軟體的話，那麼很容易發現，當我們在列印的時候， 可以同時選擇與設定每一頁列印時的標頭吧！也可以設定頁碼呢！那麼，如果我是在 Linux 底下列印純文字檔呢 可不可以具有標題啊？可不可以加入頁碼啊？呵呵！當然可以啊！使用 pr 就能夠達到這個功能了。不過， pr 的參數實在太多了，鳥哥也說不完，一般來說，鳥哥都僅使用最簡單的方式來處理而已。舉例來說，如果想要列印 /etc/man_db.conf 呢？
+
+```bash
+kevin@Kevin-Laptop:~/os$ pr ./os_note/regex/regular_express.txt 
+
+
+2022-11-17 18:02       ./os_note/regex/regular_express.txt        Page 1
+
+
+"Open Source" is a good mechanism to develop programs.
+apple is my favorite food.
+Football game is not use feet only.
+this dress doesn't fit me.
+However, this dress is about $ 3183 dollars.^M
+GNU is free air not free beer.^M
+Her hair is very beauty.^M
+I can't finish the test.^M
+Oh! The soup taste good.^M
+motorcycle is cheap than car.
+This window is clear.
+the symbol '*' is represented as start.
+Oh!     My god!
+The gd software is a library for drafting programs.^M
+You are the best is mean you are the no. 1.
+The world <Happy> is the same with "glad".
+I like dog.
+google is the best tools for search keyword.
+goooooogle yes!
+go! go! Let's go.
+# I am VBird
+```
+
+上面特殊字體那一行呢，其實就是使用 pr 處理後所造成的標題啦！標題中會有『檔案時間』、『檔案檔名』及『頁碼』三大項目。 更多的 pr 使用，請參考 pr 的說明啊！ ^_^
+
+## 11.5 重點回顧
+
+正規表示法就是處理字串的方法，他是以行為單位來進行字串的處理行為；
+
+正規表示法透過一些特殊符號的輔助，可以讓使用者輕易的達到『搜尋/刪除/取代』某特定字串的處理程序；
+只要工具程式支援正規表示法，那麼該工具程式就可以用來作為正規表示法的字串處理之用；
+
+正規表示法與萬用字元是完全不一樣的東西！萬用字元 (wildcard) 代表的是 bash 操作介面的一個功能， 但正規表示法則是一種字串處理的表示方式！
+
+使用 grep 或其他工具進行正規表示法的字串比對時，因為編碼的問題會有不同的狀態，因此， 你最好將 LANG 等變數設定為 C 或者是 en 等英文語系！
+
+grep 與 egrep 在正規表示法裡面是很常見的兩支程式，其中， egrep 支援更嚴謹的正規表示法的語法；
+由於編碼系統的不同，不同的語系 (LANG) 會造成正規表示法擷取資料的差異。因此可利用特殊符號如 [:upper:] 來替代編碼範圍較佳；
+
+由於嚴謹度的不同，正規表示法之上還有更嚴謹的延伸正規表示法；
+
+基礎正規表示法的特殊字符有： *, ., [], [-], [^], ^, $ 等！
+
+常見的支援正規表示法的工具軟體有： grep , sed, vim 等等
+printf 可以透過一些特殊符號來將資料進行格式化輸出；
+
+awk 可以使用『欄位』為依據，進行資料的重新整理與輸出；
+
+文件的比對中，可利用 diff 及 cmp 進行比對，其中 diff 主要用在純文字檔案方面的新舊版本比對
+patch 指令可以將舊版資料更新到新版 (主要亦由 diff 建立 patch 的補丁來源檔案)
