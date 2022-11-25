@@ -481,3 +481,274 @@ The 2nd parameter         ==> haha
 光看結果你就可以知道啦，那個 shift 會移動變數，而且 shift 後面可以接數字，代表拿掉最前面的幾個參數的意思。 上面的執行結果中，第一次進行 shift 後他的顯示情況是『 two three four five six』，所以就剩下五個啦！第二次直接拿掉三個，就變成『 five six 』啦！ 這樣這個案例可以瞭解了嗎？理解了 shift 的功能了嗎？
 
 上面這幾個例子都很簡單吧？幾乎都是利用 bash 的相關功能而已～ 不難啦～底下我們就要使用條件判斷式來進行一些分別功能的設定了，好好瞧一瞧先～
+
+## 12.4 條件判斷式
+
+只要講到『程式』的話，那麼條件判斷式，亦即是『 if then 』這種判別式肯定一定要學習的！ 因為很多時候，我們都必須要依據某些資料來判斷程式該如何進行。舉例來說，我們在上頭的 ans_yn.sh 討論輸入回應的範例中不是有練習當使用者輸入 Y/N 時，必須要執行不同的訊息輸出嗎？簡單的方式可以利用 && 與 || ，但如果我還想要執行一堆指令呢？那真的得要 if then 來幫忙囉～底下我們就來聊一聊！
+
+### 12.4.1 利用 if .... then
+
+這個 if .... then 是最常見的條件判斷式了～簡單的說，就是當符合某個條件判斷的時候， 就予以進行某項工作就是了。這個 if ... then 的判斷還有多層次的情況！我們分別介紹如下：
+
+#### 單層、簡單條件判斷式
+
+如果你只有一個判斷式要進行，那麼我們可以簡單的這樣看：
+
+```bash
+if [ 條件判斷式 ]; then
+	當條件判斷式成立時，可以進行的指令工作內容；
+fi   <==將 if 反過來寫，就成為 fi 啦！結束 if 之意！
+```
+
+至於條件判斷式的判斷方法，與前一小節的介紹相同啊！較特別的是，如果我有多個條件要判別時， 除了 ans_yn.sh 那個案例所寫的，也就是『將多個條件寫入一個中括號內的情況』之外， 我還可以有多個中括號來隔開喔！而括號與括號之間，則以 && 或 || 來隔開，他們的意義是：
+
+>&& 代表 AND ；
+>|| 代表 or ；
+
+所以，在使用中括號的判斷式中， && 及 || 就與指令下達的狀態不同了。舉例來說， ans_yn.sh 裡面的判斷式可以這樣修改：
+```bash
+[ "${yn}" == "Y" -o "${yn}" == "y" ]
+```
+上式可替換為
+```bash
+[ "${yn}" == "Y" ] || [ "${yn}" == "y" ]
+```
+之所以這樣改，很多人是習慣問題！很多人則是喜歡一個中括號僅有一個判別式的原因。好了， 現在我們來將 ans_yn.sh 這個腳本修改成為 if ... then 的樣式來看看：
+
+```bash
+kevin@Kevin-Laptop:~/os$ cp os_note/shell/bin/ans_yn.sh os_note/shell/bin/ans_yn-2.sh
+kevin@Kevin-Laptop:~/os$ vim os_note/shell/bin/ans_yn-2.sh 
+kevin@Kevin-Laptop:~/os$ bash os_note/shell/bin/ans_yn-2.sh 
+continue(Y) or interrupt(N)
+input:y
+OK, continue
+kevin@Kevin-Laptop:~/os$ bash os_note/shell/bin/ans_yn-2.sh 
+continue(Y) or interrupt(N)
+input:n
+Oh, interrupt
+```
+
+不過，由這個例子看起來，似乎也沒有什麼了不起吧？原本的 ans_yn.sh 還比較簡單呢～ 但是如果以邏輯概念來看，其實上面的範例中，我們使用了兩個條件判斷呢！明明僅有一個 ${yn} 的變數，為何需要進行兩次比對呢？ 此時，多重條件判斷就能夠來測試測試囉！
+
+#### 多重、複雜條件判斷式
+
+在同一個資料的判斷中，如果該資料需要進行多種不同的判斷時，應該怎麼作？舉例來說，上面的 ans_yn.sh 腳本中，我們只要進行一次 ${yn} 的判斷就好 (僅進行一次 if )，不想要作多次 if 的判斷。 此時你就得要知道底下的語法了：
+
+```bash
+# 一個條件判斷，分成功進行與失敗進行 (else)
+if [ 條件判斷式 ]; then
+	當條件判斷式成立時，可以進行的指令工作內容；
+else
+	當條件判斷式不成立時，可以進行的指令工作內容；
+fi
+```
+如果考慮更複雜的情況，則可以使用這個語法：
+```bash
+# 多個條件判斷 (if ... elif ... elif ... else) 分多種不同情況執行
+if [ 條件判斷式一 ]; then
+	當條件判斷式一成立時，可以進行的指令工作內容；
+elif [ 條件判斷式二 ]; then
+	當條件判斷式二成立時，可以進行的指令工作內容；
+else
+	當條件判斷式一與二均不成立時，可以進行的指令工作內容；
+fi
+```
+
+你得要注意的是， elif 也是個判斷式，因此出現 elif 後面都要接 then 來處理！但是 else 已經是最後的沒有成立的結果了， 所以 else 後面並沒有 then 喔！好！我們來將 ans_yn-2.sh 改寫成這樣：
+
+```bash
+[dmtsai@study bin]$ cp ans_yn-2.sh ans_yn-3.sh
+[dmtsai@study bin]$ vim ans_yn-3.sh
+#!/bin/bash
+# Program:
+#       This program shows the user's choice
+# History:
+# 2015/07/16    VBird   First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+read -p "Please input (Y/N): " yn
+
+if [ "${yn}" == "Y" ] || [ "${yn}" == "y" ]; then
+	echo "OK, continue"
+elif [ "${yn}" == "N" ] || [ "${yn}" == "n" ]; then
+	echo "Oh, interrupt!"
+else
+	echo "I don't know what your choice is"
+fi
+kevin@Kevin-Laptop:~/os$ bash os_note/shell/bin/ans_yn-3.sh 
+Please input (Y/N): y
+OK, continue
+```
+
+是否程式變得很簡單，而且依序判斷，可以避免掉重複判斷的狀況，這樣真的很容易設計程式的啦！ ^_^！ 好了，讓我們再來進行另外一個案例的設計。一般來說，**如果你不希望使用者由鍵盤輸入額外的資料時， 可以使用上一節提到的參數功能 ($1)！**讓使用者在下達指令時就將參數帶進去！ 現在我們想讓使用者輸入『 hello 』這個關鍵字時，利用參數的方法可以這樣依序設計：
+
+判斷 $1 是否為 hello，如果是的話，就顯示 "Hello, how are you ?"；
+如果沒有加任何參數，就提示使用者必須要使用的參數下達法；
+而如果加入的參數不是 hello ，就提醒使用者僅能使用 hello 為參數。
+整個程式的撰寫可以是這樣的：
+```bash
+kevin@Kevin-Laptop:~/os$ cat os_note/shell/bin/hello-2.sh
+#!/bin/bash
+# Program:
+#       Check $1 is equal to "hello"
+# History:
+# 2015/07/16    VBird   First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+if [ "${1}" == "hello" ]; then
+        echo "Hello, how are you ?"
+elif [ "${1}" == "" ]; then
+        echo "You MUST input parameters, ex> {${0} someword}"
+else
+        echo "The only parameter is 'hello', ex> {${0} hello}"
+fi
+```
+
+然後你可以執行這支程式，分別在 \$1 的位置輸入 hello, 沒有輸入與隨意輸入， 就可以看到不同的輸出囉～是否還覺得挺簡單的啊！ ^_^。事實上， 學到這裡，也真的很厲害了～好了，底下我們繼續來玩一些比較大一點的計畫囉～
+
+我們在第十章已經學會了 grep 這個好用的玩意兒，那麼多學一個叫做 netstat 的指令，這個指令可以查詢到目前主機有開啟的網路服務埠口 (service ports)， 相關的功能我們會在伺服器架設篇繼續介紹，這裡你只要知道，我可以利用『 netstat -tuln 』來取得目前主機有啟動的服務， 而且取得的資訊有點像這樣：
+
+```bash
+kevin@Kevin-Laptop:~/os$ netstat -tuln
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State      
+tcp        0      0 127.0.0.1:37877         0.0.0.0:*               LISTEN     
+udp        0      0 127.0.0.1:323           0.0.0.0:*                          
+udp6       0      0 ::1:323                 :::* 
+```
+
+上面的重點是『Local Address (本地主機的IP與埠口對應)』那個欄位，他代表的是本機所啟動的網路服務！ IP的部分說明的是該服務位於那個介面上，若為 127.0.0.1 則是僅針對本機開放，若是 0.0.0.0 或 ::: 則代表對整個 Internet 開放 (更多資訊請參考伺服器架設篇的介紹)。 每個埠口 (port) 都有其特定的網路服務，幾個常見的 port 與相關網路服務的關係是：
+
+>
+>80: WWW
+>22: ssh
+>21: ftp
+>25: mail
+>111: RPC(遠端程序呼叫)
+>631: CUPS(列印服務功能)
+
+假設我的主機有興趣要偵測的是比較常見的 port 21, 22, 25及 80 時，那我如何透過 netstat 去偵測我的主機是否有開啟這四個主要的網路服務埠口呢？由於每個服務的關鍵字都是接在冒號『 : 』後面， 所以可以藉由擷取類似『 :80 』來偵測的！那我就可以簡單的這樣去寫這個程式喔：
+```bash
+[dmtsai@study bin]$ vim netstat.sh
+#!/bin/bash
+# Program:
+# 	Using netstat and grep to detect WWW,SSH,FTP and Mail services.
+# History:
+# 2015/07/16	VBird	First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+# 1. 先作一些告知的動作而已～
+echo "Now, I will detect your Linux server's services!"
+echo -e "The www, ftp, ssh, and mail(smtp) will be detected! \n"
+
+# 2. 開始進行一些測試的工作，並且也輸出一些資訊囉！
+testfile=/dev/shm/netstat_checking.txt
+netstat -tuln > ${testfile}          # 先轉存資料到記憶體當中！不用一直執行 netstat
+testing=$(grep ":80 " ${testfile})   # 偵測看 port 80 在否？
+if [ "${testing}" != "" ]; then
+	echo "WWW is running in your system."
+fi
+testing=$(grep ":22 " ${testfile})   # 偵測看 port 22 在否？
+if [ "${testing}" != "" ]; then
+	echo "SSH is running in your system."
+fi
+testing=$(grep ":21 " ${testfile})   # 偵測看 port 21 在否？
+if [ "${testing}" != "" ]; then
+	echo "FTP is running in your system."
+fi
+testing=$(grep ":25 " ${testfile})   # 偵測看 port 25 在否？
+if [ "${testing}" != "" ]; then
+	echo "Mail is running in your system."
+fi
+```
+實際執行這支程式你就可以看到你的主機有沒有啟動這些服務啦！是否很有趣呢？ 條件判斷式還可以搞的更複雜！舉例來說，在台灣當兵是國民應盡的義務，不過，在當兵的時候總是很想要退伍的！ 那你能不能寫個腳本程式來跑，讓使用者輸入他的退伍日期，讓你去幫他計算還有幾天才退伍？
+
+由於日期是要用相減的方式來處置，所以我們可以透過使用 date 顯示日期與時間，將他轉為由 1970-01-01 累積而來的秒數， 透過秒數相減來取得剩餘的秒數後，再換算為日數即可。整個腳本的製作流程有點像這樣：
+
+先讓使用者輸入他們的退伍日期；
+再由現在日期比對退伍日期；
+由兩個日期的比較來顯示『還需要幾天』才能夠退伍的字樣。
+似乎挺難的樣子？其實也不會啦，利用『 date --date="YYYYMMDD" +%s 』轉成秒數後，接下來的動作就容易的多了！如果你已經寫完了程式，對照底下的寫法試看看：
+
+### 12.4.2 利用 case ..... esac 判斷
+
+上個小節提到的『 if .... then .... fi 』對於變數的判斷是以『比對』的方式來分辨的， 如果符合狀態就進行某些行為，並且透過較多層次 (就是 elif ...) 的方式來進行多個變數的程式碼撰寫，譬如 hello-2.sh 那個小程式，就是用這樣的方式來撰寫的囉。 好，那麼萬一我有多個既定的變數內容，例如 hello-2.sh 當中，我所需要的變數就是 "hello" 及空字串兩個， 那麼我只要針對這兩個變數來設定狀況就好了，對吧？那麼可以使用什麼方式來設計呢？呵呵～就用 case ... in .... esac 吧～，他的語法如下：
+
+```bash
+case  $變數名稱 in   <==關鍵字為 case ，還有變數前有錢字號
+  "第一個變數內容")   <==每個變數內容建議用雙引號括起來，關鍵字則為小括號 )
+	程式段
+	;;            <==每個類別結尾使用兩個連續的分號來處理！
+  "第二個變數內容")
+	程式段
+	;;
+  *)                  <==最後一個變數內容都會用 * 來代表所有其他值
+	不包含第一個變數內容與第二個變數內容的其他程式執行段
+	exit 1
+	;;
+esac                  <==最終的 case 結尾！『反過來寫』思考一下！
+```
+
+要注意的是，這個語法以 case (實際案例之意) 為開頭，結尾自然就是將 case 的英文反過來寫！就成為 esac 囉！ 不會很難背啦！另外，**每一個變數內容的程式段最後都需要兩個分號 (;;) 來代表該程式段落的結束** ，這挺重要的喔！ 至於為何需要有 * 這個變數內容在最後呢？這是因為，如果使用者不是輸入變數內容一或二時， 我們可以告知使用者相關的資訊啊！廢話少說，我們拿 hello-2.sh 的案例來修改一下，他應該會變成這樣喔：
+
+```bash
+[dmtsai@study bin]$ vim hello-3.sh
+#!/bin/bash
+# Program:
+# 	Show "Hello" from $1.... by using case .... esac
+# History:
+# 2015/07/16	VBird	First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+case ${1} in
+  "hello")
+	echo "Hello, how are you ?"
+	;;
+  "")
+	echo "You MUST input parameters, ex> {${0} someword}"
+	;;
+  *)   # 其實就相當於萬用字元，0~無窮多個任意字元之意！
+	echo "Usage ${0} {hello}"
+	;;
+esac
+
+kevin@Kevin-Laptop:~/os$ vim os_note/shell/bin/hello-3.sh
+kevin@Kevin-Laptop:~/os$ chmod u+x os_note/shell/bin/hello-3.sh 
+kevin@Kevin-Laptop:~/os$ bash os_note/shell/bin/hello-3.sh 
+You MUST input parameters, ex> {os_note/shell/bin/hello-3.sh someword}
+kevin@Kevin-Laptop:~/os$ bash os_note/shell/bin/hello-3.sh hello
+Hello, how are you ?
+kevin@Kevin-Laptop:~/os$ bash os_note/shell/bin/hello-3.sh bye
+Usage os_note/shell/bin/hello-3.sh {hello}
+```
+
+一般來說，使用『 case $變數 in 』這個語法中，當中的那個『 $變數 』大致有兩種取得的方式：
+
+**直接下達式**：例如上面提到的，利用『 script.sh variable 』 的方式來直接給予 $1 這個變數的內容，這也是在 /etc/init.d 目錄下大多數程式的設計方式。
+
+**互動式**：透過 read 這個指令來讓使用者輸入變數的內容。
+這麼說或許你的感受性還不高，好，我們直接寫個程式來玩玩：讓使用者能夠輸入 one, two, three ， 並且將使用者的變數顯示到螢幕上，如果不是 one, two, three 時，就告知使用者僅有這三種選擇。
+
+### 12.4.3 利用 function 功能
+
+什麼是『函數 (function)』功能啊？簡單的說，其實， 函數可以在 shell script 當中做出一個類似自訂執行指令的東西，最大的功能是， 可以簡化我們很多的程式碼～舉例來說，上面的 show123.sh 當中，每個輸入結果 one, two, three 其實輸出的內容都一樣啊～那麼我就可以使用 function 來簡化了！ function 的語法是這樣的：
+
+```bash
+function fname() {
+	程式段
+}
+```
+
+那個 fname 就是我們的自訂的執行指令名稱～而程式段就是我們要他執行的內容了。 要注意的是，因為 shell script 的執行方式是由上而下，由左而右， 因此在 shell script 當中的 function 的設定一定要在程式的最前面， 這樣才能夠在執行時被找到可用的程式段喔 (這一點與傳統程式語言差異相當大！初次接觸的朋友要小心！)！ 好～我們將 show123.sh 改寫一下，自訂一個名為 printit 的函數來使用喔：
+
+os_note/shell/bin/show123-2.sh one
+
+以上面的例子來說，鳥哥做了一個函數名稱為 printit ，所以，當我在後續的程式段裡面， 只要執行 printit 的話，就表示我的 shell script 要去執行『 function printit .... 』 裡面的那幾個程式段落囉！當然囉，上面這個例子舉得太簡單了，所以你不會覺得 function 有什麼好厲害的， 不過，如果某些程式碼一再地在 script 當中重複時，這個 function 可就重要的多囉～ 不但可以簡化程式碼，而且可以做成類似『模組』的玩意兒，真的很棒啦！
+
+另外， function 也是擁有內建變數的～他的內建變數與 shell script 很類似， 函數名稱代表示 \$0 ，而後續接的變數也是以 \$1, \$2... 來取代的～ 這裡很容易搞錯喔～因為『 function fname() { 程式段 } 』內的 \$0, \$1... 等等與 shell script 的 \$0 是不同的。以上面 show123-2.sh 來說，假如我下達：『 sh show123-2.sh one 』 這表示在 shell script 內的 \$1 為 "one" 這個字串。但是在 printit() 內的 \$1 則與這個 one 無關。 我們將上面的例子再次的改寫一下，讓你更清楚！
+
+在上面的例子當中，如果你輸入『 sh show123-3.sh one 』就會出現『 Your choice is 1 』的字樣～ 為什麼是 1 呢？因為在程式段落當中，我們是寫了『 printit 1 』那個 1 就會成為 function 當中的 $1 喔～ 這樣是否理解呢？ function 本身其實比較困難一點，如果你還想要進行其他的撰寫的話。 不過，我們僅是想要更加瞭解 shell script 而已，所以，這裡看看即可～瞭解原理就好囉～ ^_^
