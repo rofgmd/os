@@ -752,3 +752,267 @@ os_note/shell/bin/show123-2.sh one
 另外， function 也是擁有內建變數的～他的內建變數與 shell script 很類似， 函數名稱代表示 \$0 ，而後續接的變數也是以 \$1, \$2... 來取代的～ 這裡很容易搞錯喔～因為『 function fname() { 程式段 } 』內的 \$0, \$1... 等等與 shell script 的 \$0 是不同的。以上面 show123-2.sh 來說，假如我下達：『 sh show123-2.sh one 』 這表示在 shell script 內的 \$1 為 "one" 這個字串。但是在 printit() 內的 \$1 則與這個 one 無關。 我們將上面的例子再次的改寫一下，讓你更清楚！
 
 在上面的例子當中，如果你輸入『 sh show123-3.sh one 』就會出現『 Your choice is 1 』的字樣～ 為什麼是 1 呢？因為在程式段落當中，我們是寫了『 printit 1 』那個 1 就會成為 function 當中的 $1 喔～ 這樣是否理解呢？ function 本身其實比較困難一點，如果你還想要進行其他的撰寫的話。 不過，我們僅是想要更加瞭解 shell script 而已，所以，這裡看看即可～瞭解原理就好囉～ ^_^
+
+## 12.5 迴圈 (loop)
+
+除了 if...then...fi 這種條件判斷式之外，迴圈可能是程式當中最重要的一環了～ 迴圈可以不斷的執行某個程式段落，直到使用者設定的條件達成為止。 所以，重點是那個『條件的達成』是什麼。除了這種依據判斷式達成與否的不定迴圈之外， 還有另外一種已經固定要跑多少次的迴圈形態，可稱為固定迴圈的形態呢！底下我們就來談一談：
+
+### 12.5.1 while do done, until do done (不定迴圈)
+
+一般來說，不定迴圈最常見的就是底下這兩種狀態了：
+
+```bash
+while [ condition ]  <==中括號內的狀態就是判斷式
+do            <==do 是迴圈的開始！
+	程式段落
+done          <==done 是迴圈的結束
+```
+
+while 的中文是『當....時』，所以，這種方式說的是『當 condition 條件成立時，就進行迴圈，直到 condition 的條件不成立才停止』的意思。還有另外一種不定迴圈的方式：
+
+```bash
+until [ condition ]
+do
+	程式段落
+done
+```
+
+這種方式恰恰與 while 相反，它說的是『當 condition 條件成立時，就終止迴圈， 否則就持續進行迴圈的程式段。』是否剛好相反啊～我們以 while 來做個簡單的練習好了。 假設我要讓使用者輸入 yes 或者是 YES 才結束程式的執行，否則就一直進行告知使用者輸入字串。
+```bash
+kevin@Kevin-Laptop:~/os/os_note/shell/bin$ cat yes_to_stop.sh 
+#!/bin/bash
+# Program:
+#       Repeat question until user input correct answer.
+# History:
+# 2015/07/17    VBird   First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+while [ "${yn}" != "yes" -a "${yn}" != "YES" ]
+do
+        read -p "Please input yes/YES to stop this program: " yn
+done
+echo "OK! you input the correct answer."
+
+kevin@Kevin-Laptop:~/os/os_note/shell/bin$ ./yes_to_stop.sh 
+kevin@Kevin-Laptop:~/os/os_note/shell/bin$ ./yes_to_stop.sh 
+Please input yes/YES to stop this program: yes
+OK! you input the correct answer.
+kevin@Kevin-Laptop:~/os/os_note/shell/bin$ ./yes_to_stop.sh 
+Please input yes/YES to stop this program: no
+Please input yes/YES to stop this program: no
+Please input yes/YES to stop this program: YES
+OK! you input the correct answer.
+```
+
+```bash
+#!/bin/bash
+# Program:
+#	Use loop to calculate "1+2+3+...+100" result.
+# History:
+# 2015/07/17	VBird	First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+s=0  # 這是加總的數值變數
+i=0  # 這是累計的數值，亦即是 1, 2, 3....
+while [ "${i}" != "100" ]
+do
+	i=$(($i+1))   # 每次 i 都會增加 1 
+	s=$(($s+$i))  # 每次都會加總一次！
+done
+echo "The result of '1+2+3+...+100' is ==> $s"
+
+kevin@Kevin-Laptop:~/os/os_note/shell/bin$ ./cal_1_100.sh 
+The result of '1+2+3+...+100' is ==> 5050
+```
+
+### 12.5.2 for...do...done (固定迴圈)
+
+相對於 while, until 的迴圈方式是必須要『符合某個條件』的狀態， for 這種語法，則是『 已經知道要進行幾次迴圈』的狀態！他的語法是：
+
+```bash
+for var in con1 con2 con3 ...
+do
+	程式段
+done
+```
+
+以上面的例子來說，這個 \$var 的變數內容在迴圈工作時：
+
+第一次迴圈時， \$var 的內容為 con1 ；
+第二次迴圈時， \$var 的內容為 con2 ；
+第三次迴圈時， \$var 的內容為 con3 ；
+....
+我們可以做個簡單的練習。假設我有三種動物，分別是 dog, cat, elephant 三種， 我想每一行都輸出這樣：『There are dogs...』之類的字樣，則可以：
+
+show_animal.sh 
+
+等你執行之後就能夠發現這個程式運作的情況啦！讓我們想像另外一種狀況，由於系統上面的各種帳號都是寫在 /etc/passwd 內的第一個欄位，你能不能透過管線命令的 cut 捉出單純的帳號名稱後，以 id 分別檢查使用者的識別碼與特殊參數呢？由於不同的 Linux 系統上面的帳號都不一樣！此時實際去捉 /etc/passwd 並使用迴圈處理，就是一個可行的方案了！程式可以如下：
+```bash
+[dmtsai@study bin]$ vim userid.sh
+#!/bin/bash
+# Program
+#       Use id, finger command to check system account's information.
+# History
+# 2015/07/17    VBird   first release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+users=$(cut -d ':' -f1 /etc/passwd)    # 擷取帳號名稱
+for username in ${users}               # 開始迴圈進行！
+do
+        id ${username}
+done
+```
+
+執行上面的腳本後，你的系統帳號就會被捉出來檢查啦！這個動作還可以用在每個帳號的刪除、重整上面呢！ 換個角度來看，如果我現在需要一連串的數字來進行迴圈呢？舉例來說，我想要利用 ping 這個可以判斷網路狀態的指令， 來進行網路狀態的實際偵測時，我想要偵測的網域是本機所在的 192.168.1.1~192.168.1.100，由於有 100 台主機， 總不會要我在 for 後面輸入 1 到 100 吧？此時你可以這樣做喔！
+
+```bash
+[dmtsai@study bin]$ vim pingip.sh
+#!/bin/bash
+# Program
+#       Use ping command to check the network's PC state.
+# History
+# 2015/07/17    VBird   first release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+network="192.168.1"              # 先定義一個網域的前面部分！
+for sitenu in $(seq 1 100)       # seq 為 sequence(連續) 的縮寫之意
+do
+	# 底下的程式在取得 ping 的回傳值是正確的還是失敗的！
+        ping -c 1 -w 1 ${network}.${sitenu} &> /dev/null && result=0 || result=1
+	# 開始顯示結果是正確的啟動 (UP) 還是錯誤的沒有連通 (DOWN)
+        if [ "${result}" == 0 ]; then
+                echo "Server ${network}.${sitenu} is UP."
+        else
+                echo "Server ${network}.${sitenu} is DOWN."
+        fi
+done
+```
+
+上面這一串指令執行之後就可以顯示出 192.168.1.1~192.168.1.100 共 100 部主機目前是否能與你的機器連通！ 如果你的網域與鳥哥所在的位置不同，則直接修改上頭那個 network 的變數內容即可！其實這個範例的重點在 $(seq ..) 那個位置！那個 seq 是連續 (sequence) 的縮寫之意！代表後面接的兩個數值是一直連續的！ 如此一來，就能夠輕鬆的將連續數字帶入程式中囉！
+
+>除了使用 $(seq 1 100) 之外，你也可以直接使用 bash 的內建機制來處理喔！可以使用 {1..100} 來取代 $(seq 1 100) ！ 那個大括號內的前面/後面用兩個字元，中間以兩個小數點來代表連續出現的意思！例如要持續輸出 a, b, c...g 的話， 就可以使用『 echo {a..g} 』這樣的表示方式！
+
+```bash
+[dmtsai@study bin]$ vim dir_perm.sh
+#!/bin/bash
+# Program:
+#	User input dir name, I find the permission of files.
+# History:
+# 2015/07/17	VBird	First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+# 1. 先看看這個目錄是否存在啊？
+read -p "Please input a directory: " dir
+if [ "${dir}" == "" -o ! -d "${dir}" ]; then
+	echo "The ${dir} is NOT exist in your system."
+	exit 1
+fi
+
+# 2. 開始測試檔案囉～
+filelist=$(ls ${dir})        # 列出所有在該目錄下的檔案名稱
+for filename in ${filelist}
+do
+	perm=""
+	test -r "${dir}/${filename}" && perm="${perm} readable"
+	test -w "${dir}/${filename}" && perm="${perm} writable"
+	test -x "${dir}/${filename}" && perm="${perm} executable"
+	echo "The file ${dir}/${filename}'s permission is ${perm} "
+done
+```
+
+呵呵！很有趣的例子吧～利用這種方式，你可以很輕易的來處理一些檔案的特性呢。接下來，讓我們來玩玩另一種 for 迴圈的功能吧！主要用在數值方面的處理喔！
+
+### 12.5.3 for...do...done 的數值處理
+
+除了上述的方法之外，for 迴圈還有另外一種寫法！語法如下：
+
+```bash
+for (( 初始值; 限制值; 執行步階 ))
+do
+	程式段
+done
+```
+
+這種語法適合於數值方式的運算當中，在 for 後面的括號內的三串內容意義為：
+
+初始值：某個變數在迴圈當中的起始值，直接以類似 i=1 設定好；
+限制值：當變數的值在這個限制值的範圍內，就繼續進行迴圈。例如 i<=100；
+執行步階：每作一次迴圈時，變數的變化量。例如 i=i+1。
+值得注意的是，在『執行步階』的設定上，如果每次增加 1 ，則可以使用類似『i++』的方式，亦即是 i 每次迴圈都會增加一的意思。好，我們以這種方式來進行 1 累加到使用者輸入的迴圈吧！
+
+```bash
+[dmtsai@study bin]$ vim cal_1_100-2.sh
+#!/bin/bash
+# Program:
+# 	Try do calculate 1+2+....+${your_input}
+# History:
+# 2015/07/17	VBird	First release
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+read -p "Please input a number, I will count for 1+2+...+your_input: " nu
+
+s=0
+for (( i=1; i<=${nu}; i=i+1 ))
+do
+	s=$((${s}+${i}))
+done
+echo "The result of '1+2+3+...+${nu}' is ==> ${s}"
+```
+
+一樣也是很簡單吧！利用這個 for 則可以直接限制迴圈要進行幾次呢！
+
+## 12.6 shell script 的追蹤與 debug
+
+scripts 在執行之前，最怕的就是出現語法錯誤的問題了！那麼我們如何 debug 呢？有沒有辦法不需要透過直接執行該 scripts 就可以來判斷是否有問題呢？呵呵！當然是有的！我們就直接以 bash 的相關參數來進行判斷吧！
+
+```bash
+[dmtsai@study ~]$ sh [-nvx] scripts.sh
+選項與參數：
+-n  ：不要執行 script，僅查詢語法的問題；
+-v  ：再執行 sccript 前，先將 scripts 的內容輸出到螢幕上；
+-x  ：將使用到的 script 內容顯示到螢幕上，這是很有用的參數！
+
+範例一：測試 dir_perm.sh 有無語法的問題？
+[dmtsai@study ~]$ sh -n dir_perm.sh 
+# 若語法沒有問題，則不會顯示任何資訊！
+
+範例二：將 show_animal.sh 的執行過程全部列出來～
+[dmtsai@study ~]$ sh -x show_animal.sh 
++ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:/root/bin
++ export PATH
++ for animal in dog cat elephant
++ echo 'There are dogs.... '
+There are dogs....
++ for animal in dog cat elephant
++ echo 'There are cats.... '
+There are cats....
++ for animal in dog cat elephant
++ echo 'There are elephants.... '
+There are elephants....
+```
+
+請注意，上面範例二中執行的結果並不會有顏色的顯示！鳥哥為了方便說明所以在 + 號之後的資料都加上顏色了！ 在輸出的訊息中，在加號後面的資料其實都是指令串，由於 sh -x 的方式來將指令執行過程也顯示出來， 如此使用者可以判斷程式碼執行到哪一段時會出現相關的資訊！這個功能非常的棒！透過顯示完整的指令串， 你就能夠依據輸出的錯誤資訊來訂正你的腳本了！
+
+熟悉 sh 的用法，將可以使你在管理 Linux 的過程中得心應手！至於在 Shell scripts 的學習方法上面，需要『多看、多模仿、並加以修改成自己的樣式！』 是最快的學習手段了！網路上有相當多的朋友在開發一些相當有用的 scripts ，若是你可以將對方的 scripts 拿來，並且改成適合自己主機的樣子！那麼學習的效果會是最快的呢！
+
+另外，我們 Linux 系統本來就有很多的服務啟動腳本，如果你想要知道每個 script 所代表的功能是什麼？ 可以直接以 vim 進入該 script 去查閱一下，通常立刻就知道該 script 的目的了。 舉例來說，我們之前一直提到的 /etc/init.d/netconsole ，這個 script 是幹嘛用的？ 利用 vim 去查閱最前面的幾行字，他出現如下資訊：
+
+## 12.7 重點回顧
+
+shell script 是利用 shell 的功能所寫的一個『程式 (program)』，這個程式是使用純文字檔，將一些 shell 的語法與指令(含外部指令)寫在裡面， 搭配正規表示法、管線命令與資料流重導向等功能，以達到我們所想要的處理目的
+shell script 用在系統管理上面是很好的一項工具，但是用在處理大量數值運算上， 就不夠好了，因為 Shell scripts 的速度較慢，且使用的 CPU 資源較多，造成主機資源的分配不良。
+在 Shell script 的檔案中，指令的執行是從上而下、從左而右的分析與執行；
+shell script 的執行，至少需要有 r 的權限，若需要直接指令下達，則需要擁有 r 與 x 的權限；
+良好的程式撰寫習慣中，第一行要宣告 shell (#!/bin/bash) ，第二行以後則宣告程式用途、版本、作者等
+對談式腳本可用 read 指令達成；
+要建立每次執行腳本都有不同結果的資料，可使用 date 指令利用日期達成；
+script 的執行若以 source 來執行時，代表在父程序的 bash 內執行之意！
+若需要進行判斷式，可使用 test 或中括號 ( [] ) 來處理；
+在 script 內，\$0, \$1, \$2..., \$@ 是有特殊意義的！
+條件判斷式可使用 if...then 來判斷，若是固定變數內容的情況下，可使用 case $var in ... esac 來處理
+迴圈主要分為不定迴圈 (while, until) 以及固定迴圈 (for) ，配合 do, done 來達成所需任務！
+我們可使用 sh -x script.sh 來進行程式的 debug
