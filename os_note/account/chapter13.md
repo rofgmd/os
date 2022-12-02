@@ -702,3 +702,493 @@ chage 有一個功能很不錯喔！如果你想要讓『使用者在第一次�
 ### 13.2.2 使用者功能
 
 不論是 useradd/usermod/userdel ，那都是系統管理員所能夠使用的指令， 如果我是一般身份使用者，那麼我是否除了密碼之外，就無法更改其他的資料呢？ 當然不是啦！這裡我們介紹幾個一般身份使用者常用的帳號資料變更與查詢指令囉！
+
+#### id
+
+id 這個指令則可以查詢某人或自己的相關 UID/GID 等等的資訊，他的參數也不少，不過，都不需要記～反正使用 id 就全部都列出囉！ 另外，也回想一下，我們在前一章談到的迴圈時，就有用過這個指令喔！ ^_^
+
+```bash
+[root@study ~]# id [username]
+
+範例一：查閱 root 自己的相關 ID 資訊！
+[root@study ~]# id
+uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:
+s0-s0:c0.c1023
+# 上面資訊其實是同一行的資料！包括會顯示 UID/GID 以及支援的所有群組！
+# 至於後面那個 context=... 則是 SELinux 的內容，先不要理會他！
+home-desktop@Desktop:~/os$ id home-desktop
+uid=1000(home-desktop) gid=1000(home-desktop) groups=1000(home-desktop),4(adm),20(dialout),24(cdrom),25(floppy),27(sudo),29(audio),30(dip),44(video),46(plugdev),100(users),116(netdev)
+```
+
+#### finger
+
+finger 的中文字面意義是：『手指』或者是『指紋』的意思。這個 finger 可以查閱很多使用者相關的資訊喔！ 大部分都是在 /etc/passwd 這個檔案裡面的資訊啦！不過，這個指令有點危險，所以新的版本中已經預設不安裝這個軟體！ 好啦！現在繼續來安裝軟體先～記得第九章 dos2unix 的安裝方式！ 假設你已經將光碟機或光碟映像檔掛載在 /mnt 底下了，所以：
+
+```bash
+home-desktop@Desktop:~/os$ finger home-desktop
+Login: home-desktop                     Name: 
+Directory: /home/home-desktop           Shell: /bin/bash
+Never logged in.
+No mail.
+No Plan.
+```
+
+由於 finger 類似指紋的功能，他會將使用者的相關屬性列出來！如上表所示，其實他列出來的幾乎都是 /etc/passwd 檔案裡面的東西。列出的資訊說明如下：
+
+Login：為使用者帳號，亦即 /etc/passwd 內的第一欄位；
+Name：為全名，亦即 /etc/passwd 內的第五欄位(或稱為註解)；
+Directory：就是家目錄了；
+Shell：就是使用的 Shell 檔案所在；
+Never logged in.：figner 還會調查使用者登入主機的情況喔！
+No mail.：調查 /var/spool/mail 當中的信箱資料；
+No Plan.：調查 ~vbird1/.plan 檔案，並將該檔案取出來說明！
+不過是否能夠查閱到 Mail 與 Plan 則與權限有關了！因為 Mail / Plan 都是與使用者自己的權限設定有關， root 當然可以查閱到使用者的這些資訊，但是 vbird1 就不見得能夠查到 vbird3 的資訊， 因為 /var/spool/mail/vbird3 與 /home/vbird3/ 的權限分別是 660, 700 ，那 vbird1 當然就無法查閱的到！ 這樣解釋可以理解吧？此外，我們可以建立自己想要執行的預定計畫，當然，最多是給自己看的！可以這樣做：
+
+```bash
+範例二：利用 vbird1 建立自己的計畫檔
+[vbird1@study ~]$ echo "I will study Linux during this year." > ~/.plan
+[vbird1@study ~]$ finger vbird1
+Login: vbird1                           Name:
+Directory: /home/vbird1                 Shell: /bin/bash
+Last login Mon Jul 20 23:06 (CST) on pts/0
+No mail.
+Plan:
+I will study Linux during this year.
+
+範例三：找出目前在系統上面登入的使用者與登入時間
+[vbird1@study ~]$ finger
+Login     Name       Tty      Idle  Login Time   Office     Office Phone   Host
+dmtsai    dmtsai     tty2      11d  Jul  7 23:07
+dmtsai    dmtsai     pts/0          Jul 20 17:59  
+```
+
+在範例三當中，我們發現輸出的資訊還會有 Office, Office Phone 等資訊，那這些資訊要如何記錄呢？ 底下我們會介紹 chfn 這個指令！來看看如何修改使用者的 finger 資料吧！
+
+#### chfn
+
+chfn 有點像是： change finger 的意思！這玩意的使用方法如下：
+
+```bash
+[root@study ~]# chfn [-foph] [帳號名]
+選項與參數：
+-f  ：後面接完整的大名；
+-o  ：您辦公室的房間號碼；
+-p  ：辦公室的電話號碼；
+-h  ：家裡的電話號碼！
+
+範例一：vbird1 自己更改一下自己的相關資訊！
+[vbird1@study ~]$ chfn
+Changing finger information for vbird1.
+Name []: VBird Tsai test         <==輸入你想要呈現的全名
+Office []: DIC in KSU            <==辦公室號碼
+Office Phone []: 06-2727175#356  <==辦公室電話
+Home Phone []: 06-1234567        <==家裡電話號碼
+
+Password:  <==確認身份，所以輸入自己的密碼
+Finger information changed.
+
+[vbird1@study ~]$ grep vbird1 /etc/passwd
+vbird1:x:1003:1004:VBird Tsai test,DIC in KSU,06-2727175#356,06-1234567:/home/vbird1:/bin/bash
+# 其實就是改到第五個欄位，該欄位裡面用多個『 , 』分隔就是了！
+
+[vbird1@study ~]$ finger vbird1
+Login: vbird1                           Name: VBird Tsai test
+Directory: /home/vbird1                 Shell: /bin/bash
+Office: DIC in KSU, 06-2727175#356      Home Phone: 06-1234567
+Last login Mon Jul 20 23:12 (CST) on pts/0
+No mail.
+Plan:
+I will study Linux during this year.
+# 就是上面特殊字體呈現的那些地方是由 chfn 所修改出來的！
+```
+
+#### chsh
+
+這就是 change shell 的簡寫！使用方法就更簡單了！
+
+```bash
+[vbird1@study ~]$ chsh [-ls]
+選項與參數：
+-l  ：列出目前系統上面可用的 shell ，其實就是 /etc/shells 的內容！
+-s  ：設定修改自己的 Shell 囉
+
+範例一：用 vbird1 的身份列出系統上所有合法的 shell，並且指定 csh 為自己的 shell
+[vbird1@study ~]$ chsh -l
+/bin/sh
+/bin/bash
+/sbin/nologin   <==所謂：合法不可登入的 Shell 就是這玩意！
+/usr/bin/sh
+/usr/bin/bash
+/usr/sbin/nologin
+/bin/tcsh
+/bin/csh        <==這就是 C shell 啦！
+# 其實上面的資訊就是我們在 bash 中談到的 /etc/shells 啦！
+
+[vbird1@study ~]$ chsh -s /bin/csh; grep vbird1 /etc/passwd
+Changing shell for vbird1.
+Password:  <==確認身份，請輸入 vbird1 的密碼
+Shell changed.
+vbird1:x:1003:1004:VBird Tsai test,DIC in KSU,06-2727175#356,06-1234567:/home/vbird1:/bin/csh
+
+[vbird1@study ~]$ chsh -s /bin/bash
+# 測試完畢後，立刻改回來！
+
+[vbird1@study ~]$ ll $(which chsh)
+-rws--x--x. 1 root root 23856 Mar  6 13:59 /bin/chsh
+```
+
+### 13.2.3 新增與移除群組
+
+OK！瞭解了帳號的新增、刪除、更動與查詢後，再來我們可以聊一聊群組的相關內容了。 基本上，群組的內容都與這兩個檔案有關：/etc/group, /etc/gshadow。 群組的內容其實很簡單，都是上面兩個檔案的新增、修改與移除而已， 不過，如果再加上有效群組的概念，那麼 newgrp 與 gpasswd 則不可不知呢！
+
+#### groupadd
+
+```bash
+[root@study ~]# groupadd [-g gid] [-r] 群組名稱
+選項與參數：
+-g  ：後面接某個特定的 GID ，用來直接給予某個 GID ～
+-r  ：建立系統群組啦！與 /etc/login.defs 內的 GID_MIN 有關。
+
+範例一：新建一個群組，名稱為 group1
+[root@study ~]# groupadd group1
+[root@study ~]# grep group1 /etc/group /etc/gshadow
+/etc/group:group1:x:1503:
+/etc/gshadow:group1:!::
+# 群組的 GID 也是會由 1000 以上最大 GID+1 來決定！
+```
+
+#### groupmod
+
+跟 usermod 類似的，這個指令僅是在進行 group 相關參數的修改而已。
+
+```bash
+[root@study ~]# groupmod [-g gid] [-n group_name] 群組名
+選項與參數：
+-g  ：修改既有的 GID 數字；
+-n  ：修改既有的群組名稱
+
+範例一：將剛剛上個指令建立的 group1 名稱改為 mygroup ， GID 為 201
+[root@study ~]# groupmod -g 201 -n mygroup group1
+[root@study ~]# grep mygroup /etc/group /etc/gshadow
+/etc/group:mygroup:x:201:
+/etc/gshadow:mygroup:!::
+```
+
+#### groupdel
+
+呼呼！ groupdel 自然就是在刪除群組的囉～用法很簡單：
+
+```bash
+[root@study ~]# groupdel [groupname]
+
+範例一：將剛剛的 mygroup 刪除！
+[root@study ~]# groupdel mygroup
+
+範例二：若要刪除 vbird1 這個群組的話？
+[root@study ~]# groupdel vbird1
+groupdel: cannot remove the primary group of user 'vbird1'
+```
+
+為什麼 mygroup 可以刪除，但是 vbird1 就不能刪除呢？原因很簡單，『有某個帳號 (/etc/passwd) 的 initial group 使用該群組！』 如果查閱一下，你會發現在 /etc/passwd 內的 vbird1 第四欄的 GID 就是 /etc/group 內的 vbird1 那個群組的 GID ，所以囉，當然無法刪除～否則 vbird1 這個使用者登入系統後， 就會找不到 GID ，那可是會造成很大的困擾的！那麼如果硬要刪除 vbird1 這個群組呢？ 你『必須要確認 /etc/passwd 內的帳號沒有任何人使用該群組作為 initial group 』才行喔！所以，你可以：
+
+修改 vbird1 的 GID ，或者是：
+刪除 vbird1 這個使用者。
+
+#### gpasswd：群組管理員功能
+
+如果系統管理員太忙碌了，導致某些帳號想要加入某個專案時找不到人幫忙！這個時候可以建立『群組管理員』喔！ 什麼是群組管理員呢？就是讓某個群組具有一個管理員，這個群組管理員可以管理哪些帳號可以加入/移出該群組！ 那要如何『建立一個群組管理員』呢？就得要透過 gpasswd 囉！
+
+```bash
+# 關於系統管理員(root)做的動作：
+[root@study ~]# gpasswd groupname
+[root@study ~]# gpasswd [-A user1,...] [-M user3,...] groupname
+[root@study ~]# gpasswd [-rR] groupname
+選項與參數：
+    ：若沒有任何參數時，表示給予 groupname 一個密碼(/etc/gshadow)
+-A  ：將 groupname 的主控權交由後面的使用者管理(該群組的管理員)
+-M  ：將某些帳號加入這個群組當中！
+-r  ：將 groupname 的密碼移除
+-R  ：讓 groupname 的密碼欄失效
+
+# 關於群組管理員(Group administrator)做的動作：
+[someone@study ~]$ gpasswd [-ad] user groupname
+選項與參數：
+-a  ：將某位使用者加入到 groupname 這個群組當中！
+-d  ：將某位使用者移除出 groupname 這個群組當中。
+
+範例一：建立一個新群組，名稱為 testgroup 且群組交由 vbird1 管理：
+[root@study ~]# groupadd testgroup  <==先建立群組
+[root@study ~]# gpasswd testgroup   <==給這個群組一個密碼吧！
+Changing the password for group testgroup
+New Password:
+Re-enter new password:
+# 輸入兩次密碼就對了！
+[root@study ~]# gpasswd -A vbird1 testgroup  <==加入群組管理員為 vbird1
+[root@study ~]# grep testgroup /etc/group /etc/gshadow
+/etc/group:testgroup:x:1503:
+/etc/gshadow:testgroup:$6$MnmChP3D$mrUn.Vo.buDjObMm8F2emTkvGSeuWikhRzaKHxpJ...:vbird1:
+# 很有趣吧！此時 vbird1 則擁有 testgroup 的主控權喔！身份有點像板主啦！
+
+範例二：以 vbird1 登入系統，並且讓他加入 vbird1, vbird3 成為 testgroup 成員
+[vbird1@study ~]$ id
+uid=1003(vbird1) gid=1004(vbird1) groups=1004(vbird1) ...
+# 看得出來，vbird1 尚未加入 testgroup 群組喔！
+
+[vbird1@study ~]$ gpasswd -a vbird1 testgroup
+[vbird1@study ~]$ gpasswd -a vbird3 testgroup
+[vbird1@study ~]$ grep testgroup /etc/group
+testgroup:x:1503:vbird1,vbird3
+```
+
+## 13.3 主機的細部權限規劃：ACL 的使用
+
+從第五章開始，我們就一直強調 Linux 的權限概念是非常重要的！ 但是傳統的權限僅有三種身份 (owner, group, others) 搭配三種權限 (r,w,x) 而已，並沒有辦法單純的針對某一個使用者或某一個群組來設定特定的權限需求，例如前一小節最後的那個任務！ 此時就得要使用 ACL 這個機制啦！這玩意挺有趣的，底下我們就來談一談：
+
+### 13.3.1 什麼是 ACL 與如何支援啟動 ACL
+
+ACL 是 Access Control List 的縮寫，主要的目的是在提供傳統的 owner,group,others 的 read,write,execute 權限之外的細部權限設定。ACL 可以針對單一使用者，單一檔案或目錄來進行 r,w,x 的權限規範，對於需要特殊權限的使用狀況非常有幫助。
+
+那 ACL 主要可以針對哪些方面來控制權限呢？他主要可以針對幾個項目：
+
+使用者 (user)：可以針對使用者來設定權限；
+群組 (group)：針對群組為對象來設定其權限；
+預設屬性 (mask)：還可以針對在該目錄下在建立新檔案/目錄時，規範新資料的預設權限；
+也就是說，如果你有一個目錄，需要給一堆人使用，每個人或每個群組所需要的權限並不相同時，在過去，傳統的 Linux 三種身份的三種權限是無法達到的， 因為基本上，傳統的 Linux 權限只能針對一個用戶、一個群組及非此群組的其他人設定權限而已，無法針對單一用戶或個人來設計權限。 而 ACL 就是為了要改變這個問題啊！好了，稍微了解之後，再來看看如何讓你的檔案系統可以支援 ACL 吧！
+
+## 13.4 使用者身份切換
+
+什麼？在 Linux 系統當中還要作身份的變換？這是為啥？可能有底下幾個原因啦！
+
+使用一般帳號：系統平日操作的好習慣
+事實上，為了安全的緣故，一些老人家都會建議你，盡量以一般身份使用者來操作 Linux 的日常作業！等到需要設定系統環境時， 才變換身份成為 root 來進行系統管理，相對比較安全啦！避免作錯一些嚴重的指令，例如恐怖的『 rm -rf / 』(千萬作不得！)
+
+用較低權限啟動系統服務
+相對於系統安全，有的時候，我們必須要以某些系統帳號來進行程序的執行。 舉例來說， Linux 主機上面的一套軟體，名稱為 apache ，我們可以額外建立一個名為 apache 的使用者來啟動 apache 軟體啊，如此一來，如果這個程序被攻破，至少系統還不至於就損毀了～
+
+軟體本身的限制
+在遠古時代的 telnet 程式中，該程式預設是不許使用 root 的身份登入的，telnet 會判斷登入者的 UID， 若 UID 為 0 的話，那就直接拒絕登入了。所以，你只能使用一般使用者來登入 Linux 伺服器。 此外， ssh (註3) 也可以設定拒絕 root 登入喔！那如果你有系統設定需求該如何是好啊？就變換身份啊！
+
+由於上述考量，所以我們都是使用一般帳號登入系統的，等有需要進行系統維護或軟體更新時才轉為 root 的身份來動作。 那如何讓一般使用者轉變身份成為 root 呢？主要有兩種方式喔：
+
+**以『 su - 』直接將身份變成 root 即可，但是這個指令卻需要 root 的密碼**，也就是說，如果你要以 su 變成 root 的話，你的一般使用者就必須要有 root 的密碼才行；
+
+以『 sudo 指令 』執行 root 的指令串，由於 sudo 需要事先設定妥當，且 sudo 需要輸入使用者自己的密碼， 因此多人共管同一部主機時， sudo 要比 su 來的好喔！至少 root 密碼不會流出去！
+底下我們就來說一說 su 跟 sudo 的用法啦！
+
+### 13.4.1 su
+
+su 是最簡單的身份切換指令了，他可以進行任何身份的切換唷！方法如下：
+
+```bash
+[root@study ~]# su [-lm] [-c 指令] [username]
+選項與參數：
+-   ：單純使用 - 如『 su - 』代表使用 login-shell 的變數檔案讀取方式來登入系統；
+      若使用者名稱沒有加上去，則代表切換為 root 的身份。
+-l  ：與 - 類似，但後面需要加欲切換的使用者帳號！也是 login-shell 的方式。
+-m  ：-m 與 -p 是一樣的，表示『使用目前的環境設定，而不讀取新使用者的設定檔』
+-c  ：僅進行一次指令，所以 -c 後面可以加上指令喔！
+```
+
+上表的解釋當中有出現之前第十章談過的 login-shell 設定檔讀取方式，如果你忘記那是啥東西， 請先回去第十章瞧瞧再回來吧！這個 su 的用法當中，有沒有加上那個減號『 - 』差很多喔！ 因為涉及 login-shell 與 non-login shell 的變數讀取方法。這裡讓我們以一個小例子來說明吧！
+
+```bash
+範例一：假設你原本是 dmtsai 的身份，想要使用 non-login shell 的方式變成 root
+[dmtsai@study ~]$ su       <==注意提示字元，是 dmtsai 的身份喔！
+Password:                  <==這裡輸入 root 的密碼喔！
+[root@study dmtsai]# id    <==提示字元的目錄是 dmtsai 喔！
+uid=0(root) gid=0(root) groups=0(root) context=unconf....  <==確實是 root 的身份！
+[root@study dmtsai]# env | grep 'dmtsai'
+USER=dmtsai                                         <==竟然還是 dmtsai 這傢伙！
+PATH=...:/home/dmtsai/.local/bin:/home/dmtsai/bin   <==這個影響最大！ 
+MAIL=/var/spool/mail/dmtsai                         <==收到的 mailbox 是 vbird1
+PWD=/home/dmtsai                                    <==並非 root 的家目錄
+LOGNAME=dmtsai
+# 雖然你的 UID 已經是具有 root 的身份，但是看到上面的輸出訊息嗎？
+# 還是有一堆變數為原本 dmtsai 的身份，所以很多資料還是無法直接利用。
+[root@study dmtsai]# exit   <==這樣可以離開 su 的環境！
+
+home-desktop@Desktop:~/os$ su
+Password: 
+root@Desktop:/home/home-desktop/os# 
+exit
+home-desktop@Desktop:~/os$ id
+uid=1000(home-desktop) gid=1000(home-desktop) groups=1000(home-desktop),4(adm),20(dialout),24(cdrom),25(floppy),27(sudo),29(audio),30(dip),44(video),46(plugdev),100(users),116(netdev)
+home-desktop@Desktop:~/os$ su
+Password: 
+root@Desktop:/home/home-desktop/os# id
+uid=0(root) gid=0(root) groups=0(root)
+```
+
+單純使用『 su 』切換成為 root 的身份，讀取的變數設定方式為 non-login shell 的方式，這種方式很多原本的變數不會被改變， 尤其是我們之前談過很多次的 PATH 這個變數，由於沒有改變成為 root 的環境， 因此很多 root 慣用的指令就只能使用絕對路徑來執行咯。其他的還有 MAIL 這個變數，你輸入 mail 時， 收到的郵件竟然還是 dmtsai 的，而不是 root 本身的郵件！是否覺得很奇怪啊！所以切換身份時，請務必使用如下的範例二：
+
+```bash
+範例二：使用 login shell 的方式切換為 root 的身份並觀察變數
+[dmtsai@study ~]$ su -
+Password:   <==這裡輸入 root 的密碼喔！
+[root@study ~]# env | grep root
+USER=root
+MAIL=/var/spool/mail/root
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin
+PWD=/root
+HOME=/root
+LOGNAME=root
+# 瞭解差異了吧？下次變換成為 root 時，記得最好使用 su - 喔！
+[root@study ~]# exit   <==這樣可以離開 su 的環境！
+```
+
+上述的作法是讓使用者的身份變成 root 並開始操作系統，如果想要離開 root 的身份則得要利用 exit 離開才行。 那我如果只是想要執行『一個只有 root 才能進行的指令，且執行完畢就恢復原本的身份』呢？那就可以加上 -c 這個選項囉！ 請參考底下範例三！
+
+su 就這樣簡單的介紹完畢，總結一下他的用法是這樣的：
+
+**若要完整的切換到新使用者的環境，必須要使用『 su - username 』或『 su -l username 』， 才會連同 PATH/USER/MAIL 等變數都轉成新使用者的環境；**
+
+**如果僅想要執行一次 root 的指令，可以利用『 su - -c "指令串" 』的方式來處理；**
+
+使用 root 切換成為任何使用者時，並不需要輸入新使用者的密碼；
+雖然使用 su 很方便啦，不過缺點是，當我的主機是多人共管的環境時，如果大家都要使用 su 來切換成為 root 的身份，那麼不就每個人都得要知道 root 的密碼，這樣密碼太多人知道可能會流出去， 很不妥當呢！怎辦？透過 sudo 來處理即可！
+
+### 13.4.2 sudo
+
+相對於 su 需要瞭解新切換的使用者密碼 (常常是需要 root 的密碼)， sudo 的執行則僅需要自己的密碼即可！ 甚至可以設定不需要密碼即可執行 sudo 呢！由於 sudo 可以讓你以其他用戶的身份執行指令 (通常是使用 root 的身份來執行指令)，因此並非所有人都能夠執行 sudo ， 而是僅有規範到 /etc/sudoers 內的用戶才能夠執行 sudo 這個指令喔！說的這麼神奇，底下就來瞧瞧那 sudo 如何使用？
+
+#### sudo 的指令用法
+
+由於一開始系統預設僅有 root 可以執行 sudo ，因此底下的範例我們先以 root 的身份來執行，等到談到 visudo 時，再以一般使用者來討論其他 sudo 的用法吧！ sudo 的語法如下：
+
+```bash
+[root@study ~]# sudo [-b] [-u 新使用者帳號]
+選項與參數：
+-b  ：將後續的指令放到背景中讓系統自行執行，而不與目前的 shell 產生影響
+-u  ：後面可以接欲切換的使用者，若無此項則代表切換身份為 root 。
+
+範例一：你想要以 sshd 的身份在 /tmp 底下建立一個名為 mysshd 的檔案
+[root@study ~]# sudo -u sshd touch /tmp/mysshd
+[root@study ~]# ll /tmp/mysshd
+-rw-r--r--. 1 sshd sshd 0 Jul 21 23:37 /tmp/mysshd
+# 特別留意，這個檔案的權限是由 sshd 所建立的情況喔！
+
+範例二：你想要以 vbird1 的身份建立 ~vbird1/www 並於其中建立 index.html 檔案
+[root@study ~]# sudo -u vbird1 sh -c "mkdir ~vbird1/www; cd ~vbird1/www; \
+>  echo 'This is index.html file' > index.html"
+[root@study ~]# ll -a ~vbird1/www
+drwxr-xr-x. 2 vbird1 vbird1   23 Jul 21 23:38 .
+drwx------. 6 vbird1 vbird1 4096 Jul 21 23:38 ..
+-rw-r--r--. 1 vbird1 vbird1   24 Jul 21 23:38 index.html
+# 要注意，建立者的身份是 vbird1 ，且我們使用 sh -c "一串指令" 來執行的！
+```
+
+sudo 可以讓你切換身份來進行某項任務，例如上面的兩個範例。範例一中，我們的 root 使用 sshd 的權限去進行某項任務！ 要注意，因為我們無法使用『 su - sshd 』去切換系統帳號 (因為系統帳號的 shell 是 /sbin/nologin)， 這個時候 sudo 真是他 X 的好用了！立刻以 sshd 的權限在 /tmp 底下建立檔案！查閱一下檔案權限你就瞭解意義啦！ 至於範例二則更使用多重指令串 (透過分號 ; 來延續指令進行)，使用 sh -c 的方法來執行一連串的指令， 如此真是好方便！
+
+但是 sudo 預設僅有 root 能使用啊！為什麼呢？因為 sudo 的執行是這樣的流程：
+
+當使用者執行 sudo 時，系統於 /etc/sudoers 檔案中搜尋該使用者是否有執行 sudo 的權限；
+若使用者具有可執行 sudo 的權限後，便讓使用者『輸入使用者自己的密碼』來確認；
+若密碼輸入成功，便開始進行 sudo 後續接的指令(但 root 執行 sudo 時，不需要輸入密碼)；
+若欲切換的身份與執行者身份相同，那也不需要輸入密碼。
+所以說，sudo 執行的重點是：『能否使用 sudo 必須要看 /etc/sudoers 的設定值， 而可使用 sudo 者是透過輸入使用者自己的密碼來執行後續的指令串』喔！由於能否使用與 /etc/sudoers 有關， 所以我們當然要去編輯 sudoers 檔案啦！不過，因為該檔案的內容是有一定的規範的，因此直接使用 vi 去編輯是不好的。 此時，我們得要透過 visudo 去修改這個檔案喔！
+
+#### visudo 與 /etc/sudoers
+
+從上面的說明我們可以知道，除了 root 之外的其他帳號，若想要使用 sudo 執行屬於 root 的權限指令，則 root 需要先使用 visudo 去修改 /etc/sudoers ，讓該帳號能夠使用全部或部分的 root 指令功能。為什麼要使用 visudo 呢？這是因為 /etc/sudoers 是有設定語法的，如果設定錯誤那會造成無法使用 sudo 指令的不良後果。因此才會使用 visudo 去修改， 並在結束離開修改畫面時，系統會去檢驗 /etc/sudoers 的語法就是了。
+
+一般來說，visudo 的設定方式有幾種簡單的方法喔，底下我們以幾個簡單的例子來分別說明：
+
+I. 單一使用者可進行 root 所有指令，與 sudoers 檔案語法：
+假如我們要讓 vbird1 這個帳號可以使用 root 的任何指令，基本上有兩種作法，第一種是直接透過修改 /etc/sudoers ，方法如下
+
+```bash
+[root@study ~]# visudo
+....(前面省略)....
+root    ALL=(ALL)       ALL  <==找到這一行，大約在 98 行左右
+vbird1  ALL=(ALL)       ALL  <==這一行是你要新增的！
+....(底下省略)....
+```
+
+## 13.6 Linux 主機上的使用者訊息傳遞
+
+談了這麼多的帳號問題，總是該要談一談，那麼如何針對系統上面的使用者進行查詢吧？ 想幾個狀態，如果你在 Linux 上面操作時，剛好有其他的使用者也登入主機，你想要跟他對談，該如何是好？ 你想要知道某個帳號的相關資訊，該如何查閱？呼呼！底下我們就來聊一聊～
+
+### 13.6.1 查詢使用者： w, who, last, lastlog
+
+如何查詢一個使用者的相關資料呢？這還不簡單，我們之前就提過了 id, finger 等指令了，都可以讓您瞭解到一個使用者的相關資訊啦！那麼想要知道使用者到底啥時候登入呢？ 最簡單可以使用 last 檢查啊！這個玩意兒我們也在 第十章 bash 提過了， 您可以自行前往參考啊！簡單的很。
+
+那如果你想要知道目前已登入在系統上面的使用者呢？可以透過 w 或 who 來查詢喔！如下範例所示：
+
+```bash
+[root@study ~]# w
+ 01:49:18 up 25 days,  3:34,  3 users,  load average: 0.00, 0.01, 0.05
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+dmtsai   tty2                      07Jul15 12days  0.03s  0.03s -bash
+dmtsai   pts/0    172.16.200.254   00:18    6.00s  0.31s  0.11s sshd: dmtsai [priv]
+# 第一行顯示目前的時間、開機 (up) 多久，幾個使用者在系統上平均負載等；
+# 第二行只是各個項目的說明，
+# 第三行以後，每行代表一個使用者。如上所示，dmtsai 登入並取得終端機名 tty2 之意。
+
+[root@study ~]# who
+dmtsai   tty2         2015-07-07 23:07
+dmtsai   pts/0        2015-07-22 00:18 (192.168.1.100)
+
+home-desktop@Desktop:~/os$ w
+ 16:31:26 up  4:27,  0 users,  load average: 0.00, 0.00, 0.00
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+home-desktop@Desktop:~/os$ who
+```
+
+另外，如果您想要知道每個帳號的最近登入的時間，則可以使用 lastlog 這個指令喔！ lastlog 會去讀取 /var/log/lastlog 檔案，結果將資料輸出如下表：
+
+```bash
+home-desktop@Desktop:~/os$ lastlog
+Username         Port     From             Latest
+root                                       **Never logged in**
+daemon                                     **Never logged in**
+bin                                        **Never logged in**
+sys                                        **Never logged in**
+sync                                       **Never logged in**
+games                                      **Never logged in**
+man                                        **Never logged in**
+lp                                         **Never logged in**
+mail                                       **Never logged in**
+news                                       **Never logged in**
+uucp                                       **Never logged in**
+proxy                                      **Never logged in**
+www-data                                   **Never logged in**
+backup                                     **Never logged in**
+list                                       **Never logged in**
+irc                                        **Never logged in**
+gnats                                      **Never logged in**
+nobody                                     **Never logged in**
+systemd-network                            **Never logged in**
+systemd-resolve                            **Never logged in**
+messagebus                                 **Never logged in**
+systemd-timesync                           **Never logged in**
+syslog                                     **Never logged in**
+_apt                                       **Never logged in**
+uuidd                                      **Never logged in**
+tcpdump                                    **Never logged in**
+home-desktop                               **Never logged in**
+rtkit                                      **Never logged in**
+usbmux                                     **Never logged in**
+kevin                                      **Never logged in**
+```
+
+## 13.8 重點回顧
+
+Linux 作業系統上面，關於帳號與群組，其實記錄的是 UID/GID 的數字而已；
+使用者的帳號/群組與 UID/GID 的對應，參考 /etc/passwd 及 /etc/group 兩個檔案
+/etc/passwd 檔案結構以冒號隔開，共分為七個欄位，分別是『帳號名稱、密碼、UID、GID、全名、家目錄、shell』
+UID 只有 0 與非為 0 兩種，非為 0 則為一般帳號。一般帳號又分為系統帳號 (1~999) 及可登入者帳號 (大於 1000)
+帳號的密碼已經移動到 /etc/shadow 檔案中，該檔案權限為僅有 root 可以更動。該檔案分為九個欄位，內容為『 帳號名稱、加密密碼、密碼更動日期、密碼最小可變動日期、密碼最大需變動日期、密碼過期前警告日數、密碼失效天數、 帳號失效日、保留未使用』
+使用者可以支援多個群組，其中在新建檔案時會影響新檔案群組者，為有效群組。而寫入 /etc/passwd 的第四個欄位者， 稱為初始群組。
+與使用者建立、更改參數、刪除有關的指令為：useradd, usermod, userdel等，密碼建立則為 passwd；
+與群組建立、修改、刪除有關的指令為：groupadd, groupmod, groupdel 等；
+群組的觀察與有效群組的切換分別為：groups 及 newgrp 指令；
+useradd 指令作用參考的檔案有： /etc/default/useradd, /etc/login.defs, /etc/skel/ 等等
+觀察使用者詳細的密碼參數，可以使用『 chage -l 帳號 』來處理；
+使用者自行修改參數的指令有： chsh, chfn 等，觀察指令則有： id, finger 等
+ACL 的功能需要檔案系統有支援，CentOS 7 預設的 XFS 確實有支援 ACL 功能！
+ACL 可進行單一個人或群組的權限管理，但 ACL 的啟動需要有檔案系統的支援；
+ACL 的設定可使用 setfacl ，查閱則使用 getfacl ；
+身份切換可使用 su ，亦可使用 sudo ，但使用 sudo 者，必須先以 visudo 設定可使用的指令；
+PAM 模組可進行某些程式的驗證程序！與 PAM 模組有關的設定檔位於 /etc/pam.d/*及/etc/security/*
+系統上面帳號登入情況的查詢，可使用 w, who, last, lastlog 等；
+線上與使用者交談可使用 write, wall，離線狀態下可使用 mail 傳送郵件！
